@@ -35,14 +35,14 @@ const sheetCaches = new Array<Promise<DinoSpritesheet> | null>(VARIANTS.length).
 async function loadVariant(index: number): Promise<DinoSpritesheet> {
   const { jsonUrl, pngUrl } = VARIANTS[index];
   const [json, baseTexture] = await Promise.all([
-    fetch(jsonUrl).then((r) => r.json() as Promise<Record<string, unknown>>),
+    fetch(jsonUrl).then((r) => r.json() as Promise<import("pixi.js").SpritesheetData>),
     Assets.load<Texture>(pngUrl),
   ]);
   baseTexture.source.scaleMode = "nearest";
   const sheet = new Spritesheet(baseTexture, json);
   await sheet.parse();
   const textures = sheet.animations as unknown as Record<DinoAnim, Texture[]>;
-  const meta = json.meta as { size: { h: number } };
+  const meta = json.meta as unknown as { size: { h: number } };
   return { textures, frameW: meta.size.h, frameH: meta.size.h };
 }
 
