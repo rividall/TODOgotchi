@@ -1,0 +1,26 @@
+# FastAPI + ASGI
+fastapi>=0.115
+uvicorn[standard]>=0.34
+
+# Database
+sqlalchemy[asyncio]>=2.0
+asyncpg>=0.30
+alembic>=1.15
+
+# Validation & Settings
+pydantic>=2.11
+pydantic-settings>=2.8
+email-validator>=2.0
+
+# Auth
+python-jose[cryptography]>=3.3
+bcrypt>=4.0
+
+# File uploads
+python-multipart>=0.0.20
+
+# Testing
+pytest>=8.0
+pytest-asyncio>=0.25
+httpx>=0.28
+aiosqlite>=0.21
