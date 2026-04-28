@@ -23,9 +23,18 @@ class Settings(BaseSettings):
     UPLOAD_DIR: str = "/app/uploads"
     MAX_UPLOAD_SIZE_MB: int = 10
 
+    # Admin key for machine-to-machine admin API (X-Admin-Key header)
+    ADMIN_API_KEY: str = ""
+    # Comma-separated emails granted in-app moderation access
+    ADMIN_EMAILS: str = ""
+
     @property
     def cors_origins(self) -> list[str]:
         return [o.strip() for o in self.ALLOWED_ORIGINS.split(",")]
+
+    @property
+    def admin_emails(self) -> set[str]:
+        return {e.strip().lower() for e in self.ADMIN_EMAILS.split(",") if e.strip()}
 
     model_config = {"env_file": ".env", "extra": "ignore"}
 

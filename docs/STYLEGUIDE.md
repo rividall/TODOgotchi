@@ -1,4 +1,4 @@
-# poringField -- Style Guide & Cheatsheet
+# TODOgotchi -- Style Guide & Cheatsheet
 
 Use this to replicate the project's visual language across all UI work. The aesthetic goal: soft, grassy, warm. Think Animal Crossing meets Ragnarok Online. Pastel greens for the field, warm pinks/reds for the porings.
 

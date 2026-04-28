@@ -17,6 +17,7 @@ from app.schemas.auth import (
     TokenPair,
     UserOut,
 )
+from app.core.config import settings
 from app.services.auth_service import authenticate_user, register_user
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
@@ -49,5 +50,7 @@ async def refresh(payload: RefreshRequest) -> AccessTokenOnly:
 
 
 @router.get("/me", response_model=UserOut)
-async def me(current_user: User = Depends(get_current_user)) -> User:
-    return current_user
+async def me(current_user: User = Depends(get_current_user)) -> UserOut:
+    return UserOut.model_validate(current_user).model_copy(
+        update={"is_admin": current_user.email.lower() in settings.admin_emails}
+    )

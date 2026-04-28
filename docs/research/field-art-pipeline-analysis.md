@@ -1,7 +1,7 @@
 # Field Art Pipeline — Analysis
 
 **Date:** 2026-04-23
-**Analyzed:** Options for making poringField's field + porings look like a real 2D video game — not a "task manager with circles." Covers asset sources (Kenney, itch.io, AI generators), animation runtimes (Rive), and PixiJS integration patterns.
+**Analyzed:** Options for making TODOgotchi's field + porings look like a real 2D video game — not a "task manager with circles." Covers asset sources (Kenney, itch.io, AI generators), animation runtimes (Rive), and PixiJS integration patterns.
 **Licenses:** CC0 / MIT / varies by itch.io pack / Rive free tier.
 **For:** Visual-quality upgrade after the field engine rework. Decides the path from "hand-drawn Pixi Graphics circles" to "bespoke video-game-feeling field."
 
@@ -473,13 +473,13 @@ With those three answers, the tier becomes obvious.
 
 ## 12. Conclusion
 
-poringField's renderer is ready for great art. The field engine rework already gave us a WebGL canvas, physics, juice, and overlays — what's left is the visual language.
+TODOgotchi's renderer is ready for great art. The field engine rework already gave us a WebGL canvas, physics, juice, and overlays — what's left is the visual language.
 
 Splitting the art problem into **environment (static, quantity-driven)** and **character (interactive, quality-driven)** makes the path obvious:
 - Environment is solved by **downloading free CC0 sprites**.
 - Character is solved by **authoring once in Rive**.
 
-Skip commissioning for now. Skip AI generators unless you hit a specific need. Skip background video entirely. The recommended 4-5 day path gets poringField from "task manager with circles" to "a place with creatures that live in it," at zero external cost, with every choice reversible.
+Skip commissioning for now. Skip AI generators unless you hit a specific need. Skip background video entirely. The recommended 4-5 day path gets TODOgotchi from "task manager with circles" to "a place with creatures that live in it," at zero external cost, with every choice reversible.
 
 Start with the half-day Tier 0 polish pass as a gate. If the porings already feel alive with just squash and blink, the rest might not even be needed.
 

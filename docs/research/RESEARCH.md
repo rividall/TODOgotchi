@@ -1,6 +1,6 @@
 # Research, Analysis & Deployment Docs
 
-This folder contains all technical research, package analysis, and deployment documentation for poringField. It follows a three-stage pipeline for integrating new packages and features.
+This folder contains all technical research, package analysis, and deployment documentation for TODOgotchi. It follows a three-stage pipeline for integrating new packages and features.
 
 ---
 

@@ -11,6 +11,10 @@ Whenever visiting this page to look for info on how to perform a task, remember 
 
 ## Pending
 
+- [ ] **[Workspaces] Invite links** -- Users receive a link to join a workspace instead of being manually added by an admin. Needs a `workspace_invites` table (token, workspace_id, expires_at), a `POST /workspaces/{id}/invite` endpoint to generate the link, and a `GET /join/{token}` page that accepts it and adds the user as a member.
+- [ ] **[Workspaces] Read-only members** -- Add a `role` field to `workspace_members` (`owner | member | viewer`). Viewers can see and interact with porings but cannot create, edit, or delete them. Needs backend permission checks + frontend disabled states.
+- [ ] **[Workspaces] Multiple workspaces + picker** -- Users can belong to multiple workspaces. A dropdown in the field header lets them switch the active workspace. Porings shown are filtered by the selected workspace. Needs: remove unique constraint on `workspace_members.user_id`, add `active_workspace_id` to user session or frontend state, workspace picker UI.
+- [ ] **[Auth] Guest access** -- `POST /auth/guest` endpoint that creates a temporary anonymous user and returns a JWT pair. Frontend "Join as guest" button (landing page) calls this instead of navigating to `/register`. Guest accounts have a TTL (e.g. 7 days) and can be upgraded to full accounts later. Needs: backend endpoint + User model guest flag + migration + frontend wiring.
 - [ ] **[INFO] Add fedback input for third parties** -- Add a field for people to add feedback on a poring, and store that somewhere.
 - [ ] **[Audio] Sound design pass** -- Howler.js for: soft "boing" on caress, tier-up ding, ripe ambient hum, completion firework. Muted by default with a toggle. Expands the original "idle sounds" idea into a full audio layer.
 - [ ] **[UI] Poring hunger decay** -- After X days without interaction, poring XP slowly decreases (they get sad). Needs a backend cron job. Phase 4+.

@@ -1,6 +1,10 @@
-# poringField
+# TODOgotchi
 
-A task manager where your TODOs are tamagotchi-like poring blobs bouncing around a field. Feed them by working on them — add checklists, labels, descriptions — and watch them grow. When a poring is plump enough, act on it: ship the feature, book the tickets, cross it off.
+Hey there stranger!
+This is a hobby project based on ideacritters.com by @koysun.
+As part of my full-stack development self-teaching sprint, I wanted to expand on the original by adding more data fields, modes, animations, and user/guest accounts to practice back and front end architecture, design and development.
+
+The critters! Feed them by working on them — add checklists, labels, descriptions — and watch them grow. When a critter is plump enough, act on it: ship the feature, book the tickets, cross it off.
 
 ## Tech Stack
 
@@ -54,7 +58,7 @@ User browser
 ## Project Structure
 
 ```
-poringField/
+todogotchi/
 ├── backend/
 │   ├── app/
 │   │   ├── core/           # config, database, security

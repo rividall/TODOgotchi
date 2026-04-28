@@ -42,13 +42,14 @@ def _poring_query():
     )
 
 
-async def _get_owned_poring(db: AsyncSession, poring_id: int, user: User) -> Poring:
+async def _get_workspace_poring(db: AsyncSession, poring_id: int, user: User) -> Poring:
+    """Fetch a poring and verify the current user's workspace has access to it."""
     result = await db.execute(_poring_query().where(Poring.id == poring_id))
     poring = result.scalar_one_or_none()
     if poring is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Poring not found")
-    if poring.user_id != user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your poring")
+    if user.workspace_id is None or poring.workspace_id != user.workspace_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not in your workspace")
     return poring
 
 
@@ -57,8 +58,12 @@ async def list_porings(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[PoringOut]:
+    if current_user.workspace_id is None:
+        return []
     result = await db.execute(
-        _poring_query().where(Poring.user_id == current_user.id).order_by(Poring.created_at)
+        _poring_query()
+        .where(Poring.workspace_id == current_user.workspace_id)
+        .order_by(Poring.created_at)
     )
     return [_to_out(p) for p in result.scalars().all()]
 
@@ -69,14 +74,19 @@ async def create_poring(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> PoringOut:
+    if current_user.workspace_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You are not in a workspace",
+        )
     poring = Poring(
         title=payload.title,
         description=payload.description,
         user_id=current_user.id,
+        workspace_id=current_user.workspace_id,
     )
     db.add(poring)
     await db.commit()
-    # Re-fetch with relationships loaded to avoid async lazy-load after commit.
     result = await db.execute(_poring_query().where(Poring.id == poring.id))
     return _to_out(result.scalar_one())
 
@@ -87,7 +97,7 @@ async def get_poring(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> PoringOut:
-    poring = await _get_owned_poring(db, poring_id, current_user)
+    poring = await _get_workspace_poring(db, poring_id, current_user)
     return _to_out(poring)
 
 
@@ -98,7 +108,7 @@ async def update_poring(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> PoringOut:
-    poring = await _get_owned_poring(db, poring_id, current_user)
+    poring = await _get_workspace_poring(db, poring_id, current_user)
     data = payload.model_dump(exclude_unset=True)
 
     if "title" in data and data["title"] is not None:
@@ -114,7 +124,6 @@ async def update_poring(
         await award_xp(db, poring, XPEventType.description_edit, commit=False)
 
     await db.commit()
-    # Re-fetch to load fresh relationship state.
     result = await db.execute(_poring_query().where(Poring.id == poring_id))
     return _to_out(result.scalar_one())
 
@@ -125,7 +134,7 @@ async def delete_poring(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> None:
-    poring = await _get_owned_poring(db, poring_id, current_user)
+    poring = await _get_workspace_poring(db, poring_id, current_user)
     await db.delete(poring)
     await db.commit()
 
@@ -137,7 +146,7 @@ async def act_on_poring(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> PoringOut:
-    poring = await _get_owned_poring(db, poring_id, current_user)
+    poring = await _get_workspace_poring(db, poring_id, current_user)
 
     if poring.status != PoringStatus.alive:
         raise HTTPException(

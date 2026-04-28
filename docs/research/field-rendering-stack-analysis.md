@@ -11,7 +11,7 @@
 
 **Recommendation:** ✅ **YES — adopt the stack, but in phases.** Commit to PixiJS as the renderer, Matter.js as the physics layer, GSAP for UI juice, and tsparticles for the completion burst. Keep React + DOM for all non-canvas UI (sidebar, modal, floating poring tabs). Defer Rive to a later polish pass.
 
-**The one real gate: React 19.** [@pixi/react v8](https://react.pixijs.io/) is **React 19 only**. poringField is currently on React 18.3. React 19 is stable and broadly adopted as of mid-2025, and Vite 6 supports it cleanly. The upgrade is the first step and is largely mechanical. Fallback if we don't want to upgrade: use @pixi/react v7 (React 18) or drop @pixi/react entirely and call PixiJS imperatively inside a `useEffect`.
+**The one real gate: React 19.** [@pixi/react v8](https://react.pixijs.io/) is **React 19 only**. TODOgotchi is currently on React 18.3. React 19 is stable and broadly adopted as of mid-2025, and Vite 6 supports it cleanly. The upgrade is the first step and is largely mechanical. Fallback if we don't want to upgrade: use @pixi/react v7 (React 18) or drop @pixi/react entirely and call PixiJS imperatively inside a `useEffect`.
 
 **Why this combination wins**:
 - **WebGL via PixiJS** scales to hundreds of bouncing porings without frame drops — the CSS-transform approach we have now will start stuttering somewhere around 50 simultaneously animated elements.
@@ -600,7 +600,7 @@ None. Existing `frontend` service's Dockerfile runs `npm ci && npm run build` �
 
 ## 16. Conclusion
 
-poringField has outgrown CSS animations. The user wants porings that really jump around a video-game field, floating tabs above each one, and a sidebar that only appears for actual editing. All of that lands cleanly on a **PixiJS + Matter.js + GSAP + tsparticles** stack, with React + DOM staying in charge of all non-field UI.
+TODOgotchi has outgrown CSS animations. The user wants porings that really jump around a video-game field, floating tabs above each one, and a sidebar that only appears for actual editing. All of that lands cleanly on a **PixiJS + Matter.js + GSAP + tsparticles** stack, with React + DOM staying in charge of all non-field UI.
 
 The only real commitment before starting is the React 18 → 19 upgrade, which is stable and widely adopted as of April 2026 and removes the one @pixi/react v8 compatibility gate. Everything else is a purely additive frontend change with zero server impact and no backend or schema changes.
 

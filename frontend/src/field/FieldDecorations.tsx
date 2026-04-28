@@ -4,9 +4,9 @@
  * Each world defines which files are "scatter" (interior) and which are
  * "trees" (edge clusters), plus the scale/anchor for its tile style.
  *
- * forest  — Kenney 512×512 isometric tiles; anchor y≈0.62
- * forest2 — 16×16 pixel-art tiles; nearest-neighbor, 5× scale
- * forest3 — 16×16 pixel-art tiles; nearest-neighbor, 5× scale
+ * Forest_ISO   — Kenney 512×512 isometric tiles; anchor y≈0.62
+ * Forest_retro — 16×16 pixel-art tiles; nearest-neighbor, 5× scale
+ * Forest       — 16×16 pixel-art tiles; nearest-neighbor, 5× scale
  */
 import { Assets } from "pixi.js";
 import type { Texture } from "pixi.js";
@@ -14,8 +14,8 @@ import { useEffect, useState } from "react";
 
 // ─── World id ──────────────────────────────────────────────────────────────
 
-export type WorldId = "forest" | "forest2" | "forest3";
-export const WORLD_IDS: WorldId[] = ["forest", "forest2", "forest3"];
+export type WorldId = "Forest_ISO" | "Forest_retro" | "Forest";
+export const WORLD_IDS: WorldId[] = ["Forest_ISO", "Forest_retro", "Forest"];
 
 // ─── Tile imports (static globs — Vite resolves at build time) ────────────
 
@@ -51,7 +51,7 @@ interface WorldConfig {
 }
 
 const WORLD_CONFIGS: Record<WorldId, WorldConfig> = {
-  forest: {
+  Forest_ISO: {
     scatterUrls: [...urls(F1_FLOWER), ...urls(F1_MUSHROOM), ...urls(F1_PLANT), ...urls(F1_ROCK)],
     treeUrls:    urls(F1_TREE),
     scatterScale: 1.05,
@@ -60,7 +60,7 @@ const WORLD_CONFIGS: Record<WorldId, WorldConfig> = {
     pixelArt:     false,
     minSpacing:   0,
   },
-  forest2: {
+  Forest_retro: {
     scatterUrls: urls(F2_SCATTER),
     treeUrls:    urls(F2_TREE),
     scatterScale: 5,
@@ -69,7 +69,7 @@ const WORLD_CONFIGS: Record<WorldId, WorldConfig> = {
     pixelArt:     true,
     minSpacing:   90, // 16px tile × 5 scale = 80px; 90 gives a small gap
   },
-  forest3: {
+  Forest: {
     scatterUrls: urls(F3_SCATTER),
     treeUrls:    urls(F3_TREE),
     scatterScale: 5,

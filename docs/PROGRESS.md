@@ -1,12 +1,12 @@
 # Implementation Progress
 
-Multi-phase build plan for poringField. Each phase produces a runnable increment. ALL DEVELOPMENT MUST CONFORM WITH THE RELATED LIBRARIES AND DATABASE SCHEMES. ALWAYS SEARCH FOR THE PROPER DOCUMENTATION OF LIBRARIES AND READ THEM TO MAKE SURE THE CODE CONFORMS TO WHAT THE LIBRARIES EXPECT.
+Multi-phase build plan for TODOgotchi. Each phase produces a runnable increment. ALL DEVELOPMENT MUST CONFORM WITH THE RELATED LIBRARIES AND DATABASE SCHEMES. ALWAYS SEARCH FOR THE PROPER DOCUMENTATION OF LIBRARIES AND READ THEM TO MAKE SURE THE CODE CONFORMS TO WHAT THE LIBRARIES EXPECT.
 
 ---
 
 ## Phase 1: The Field **DONE (2026-04-23)**
 
-Minimum viable poringField. Auth works, porings can be created and listed, and the field canvas shows animated blobs. Clicking a poring opens a side panel where you can read and edit basic info.
+Minimum viable TODOgotchi. Auth works, porings can be created and listed, and the field canvas shows animated blobs. Clicking a poring opens a side panel where you can read and edit basic info.
 
 ### Backend
 - [x] User model (`id`, `email`, `username`, `hashed_password`, `created_at`)
@@ -200,7 +200,7 @@ Adds a `world` dimension to labels — porings in a forest, cars in a city, spir
 
 ## Deployment Phase: Server Setup **NOT STARTED**
 
-This phase takes poringField from "works on localhost" to "running on the server behind porings.buenalynch.com." Read [SERVER-INFRASTRUCTURE.md](SERVER-INFRASTRUCTURE.md) before starting.
+This phase takes TODOgotchi from "works on localhost" to "running on the server behind porings.buenalynch.com." Read [SERVER-INFRASTRUCTURE.md](SERVER-INFRASTRUCTURE.md) before starting.
 
 ### Pre-flight Checks
 - [ ] Read SERVER-INFRASTRUCTURE.md to confirm no port conflicts (3004, 8004, 5434 are the chosen ports)
@@ -225,6 +225,6 @@ This phase takes poringField from "works on localhost" to "running on the server
 - [ ] Add HTTP monitor in Uptime Kuma (uptime.buenalynch.com) for `porings.buenalynch.com`
 
 ### Documentation
-- [ ] Update SERVER-INFRASTRUCTURE.md: add poringField container entry, ports, subdomain, tunnel ingress
+- [ ] Update SERVER-INFRASTRUCTURE.md: add TODOgotchi container entry, ports, subdomain, tunnel ingress
 - [ ] Update README.md: confirm Server & Deployment table is filled
-- [ ] Create docs/research/poringField-deployment.md with setup steps, troubleshooting, and rollback instructions
+- [ ] Create docs/research/todogotchi-deployment.md with setup steps, troubleshooting, and rollback instructions

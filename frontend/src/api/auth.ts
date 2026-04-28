@@ -16,6 +16,7 @@ export interface User {
   email: string;
   username: string;
   created_at: string;
+  is_admin: boolean;
 }
 
 export function login(email: string, password: string): Promise<TokenPair> {

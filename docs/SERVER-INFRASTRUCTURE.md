@@ -1,4 +1,4 @@
-# poringField -- Server Infrastructure
+# TODOgotchi -- Server Infrastructure
 
 Last updated: 2026-04-24
 
@@ -11,12 +11,12 @@ Last updated: 2026-04-24
 
 | Service | Port | Container |
 |---------|------|-----------|
-| Frontend | 3004 | poringfield-frontend-1 |
-| Backend | 8004 | poringfield-backend-1 |
-| Database | 5432 (internal only, no host port) | poringfield-db-1 |
+| Frontend | 3004 | todogotchi-frontend-1 |
+| Backend | 8004 | todogotchi-backend-1 |
+| Database | 5432 (internal only, no host port) | todogotchi-db-1 |
 
 - **Subdomain**: porings.buenalynch.com
-- **Compose file**: `~/repositories/poringField/docker-compose.yml`
+- **Compose file**: `~/repositories/todogotchi/docker-compose.yml`
 - **Volumes**: pgdata (postgres data)
 
 ## Notes

@@ -49,15 +49,19 @@ _upload_path = Path(settings.UPLOAD_DIR)
 _upload_path.mkdir(parents=True, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=_upload_path), name="uploads")
 
+from app.routers.admin import router as admin_router
 from app.routers.auth import router as auth_router
 from app.routers.checklist import router as checklist_router
+from app.routers.feedback import router as feedback_router
 from app.routers.labels import router as labels_router
 from app.routers.porings import router as porings_router
 
+app.include_router(admin_router)
 app.include_router(auth_router)
 app.include_router(porings_router)
 app.include_router(checklist_router)
 app.include_router(labels_router)
+app.include_router(feedback_router)
 
 
 @app.get("/health")

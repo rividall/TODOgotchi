@@ -1,4 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 
 import { ApiError } from "@/api/client";
 import type { Label } from "@/api/labels";
@@ -8,6 +9,7 @@ import type { Poring } from "@/api/porings";
 import { ActModal } from "@/components/ActModal";
 import { CompletedDrawer } from "@/components/CompletedDrawer";
 import { CreatePoringButton } from "@/components/CreatePoringButton";
+import { FeedbackModal } from "@/components/FeedbackModal";
 import { TaskPanel } from "@/components/TaskPanel";
 import { FieldStage } from "@/field/FieldStage";
 import type { CaressSignal } from "@/field/FieldStage";
@@ -26,16 +28,17 @@ const AmbientParticles = lazy(() =>
 );
 
 export function FieldPage(): React.ReactElement {
-  const { user, logout } = useAuth();
+  const { user, logout, isGuest } = useAuth();
   const [porings, setPorings] = useState<Poring[]>([]);
   const [labels, setLabels] = useState<Label[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [world, setWorld] = useState<WorldId>("forest");
+  const [world, setWorld] = useState<WorldId>("Forest");
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [actingId, setActingId] = useState<number | null>(null);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [burstIds, setBurstIds] = useState<Set<number>>(new Set());
   const [caressSignal, setCaressSignal] = useState<CaressSignal | null>(null);
   const [heartBursts, setHeartBursts] = useState<HeartBurst[]>([]);
@@ -143,7 +146,7 @@ export function FieldPage(): React.ReactElement {
   return (
     <main className="field-page">
       <header className="field-header">
-        <h1>poringField</h1>
+        <h1>TODOgotchi</h1>
         <div className="field-user">
           <select
             className="world-switcher"
@@ -154,12 +157,38 @@ export function FieldPage(): React.ReactElement {
               <option key={w} value={w}>{w}</option>
             ))}
           </select>
-          <span>Hi, {user?.username}</span>
+          <span>{isGuest ? "Guest" : `Hi, ${user?.username}`}</span>
+          {user?.is_admin && (
+            <Link to="/admin" className="field-header-btn field-header-btn--blue">
+              Moderation
+            </Link>
+          )}
+          {isGuest && (
+            <>
+              <a
+                href="https://github.com/rividall/TODOgotchi"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="field-header-btn field-header-btn--blue"
+              >
+                Download &amp; run
+              </a>
+              <a href="/register" className="field-header-btn field-header-btn--green">
+                Request Account
+              </a>
+            </>
+          )}
           <button type="button" onClick={logout}>
-            Sign out
+            {isGuest ? "Exit" : "Sign out"}
           </button>
         </div>
       </header>
+
+      {isGuest && (
+        <div className="guest-banner" role="status">
+          <span>You&rsquo;re exploring as a guest — your progress won&rsquo;t be saved.</span>
+        </div>
+      )}
 
       <section className="field-body">
         {loading ? (
@@ -204,6 +233,15 @@ export function FieldPage(): React.ReactElement {
           </>
         )}
         <CompletedDrawer porings={completed} onSelect={(id) => setEditingId(id)} />
+        {isGuest && (
+          <button
+            type="button"
+            className="feedback-fab"
+            onClick={() => setFeedbackOpen(true)}
+          >
+            💬 Leave feedback
+          </button>
+        )}
         <CreatePoringButton
           onCreated={(p) => {
             setPorings((prev) => [...prev, p]);
@@ -238,6 +276,8 @@ export function FieldPage(): React.ReactElement {
       )}
 
       {burstIds.size > 0 && <BurstOverlay ids={burstIds} porings={porings} bodiesRef={bodiesRef} />}
+
+      {feedbackOpen && <FeedbackModal onClose={() => setFeedbackOpen(false)} />}
     </main>
   );
 }

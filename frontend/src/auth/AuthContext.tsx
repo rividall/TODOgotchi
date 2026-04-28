@@ -4,13 +4,16 @@ import type { ReactNode } from "react";
 import * as authApi from "@/api/auth";
 import type { User } from "@/api/auth";
 import { configureApiAuth } from "@/api/client";
+import { resetGuestStore, setGuestMode } from "@/guest/store";
 
 interface AuthState {
   user: User | null;
   initializing: boolean;
+  isGuest: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, username: string, password: string) => Promise<void>;
   logout: () => void;
+  enterGuestMode: () => void;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -20,6 +23,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.React
   const refreshRef = useRef<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [initializing, setInitializing] = useState(true);
+  const [isGuest, setIsGuest] = useState(false);
 
   useEffect(() => {
     configureApiAuth({
@@ -50,6 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.React
     () => ({
       user,
       initializing,
+      isGuest,
       login: async (email, password) => {
         const tokens = await authApi.login(email, password);
         accessRef.current = tokens.access_token;
@@ -66,9 +71,18 @@ export function AuthProvider({ children }: { children: ReactNode }): React.React
         accessRef.current = null;
         refreshRef.current = null;
         setUser(null);
+        if (isGuest) {
+          setGuestMode(false);
+          resetGuestStore();
+          setIsGuest(false);
+        }
+      },
+      enterGuestMode: () => {
+        setGuestMode(true);
+        setIsGuest(true);
       },
     }),
-    [user, initializing],
+    [user, initializing, isGuest],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

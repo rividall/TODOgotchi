@@ -1,7 +1,7 @@
 # Multi-World Pipeline — Analysis
 
 **Date:** 2026-04-23
-**Analyzed:** Turning poringField into a multi-biome experience — labels become "worlds," each with its own environment art and creature type. Porings in the forest, cars in the city, spirits in the graveyard, fish in the ocean, etc.
+**Analyzed:** Turning TODOgotchi into a multi-biome experience — labels become "worlds," each with its own environment art and creature type. Porings in the forest, cars in the city, spirits in the graveyard, fish in the ocean, etc.
 **Licenses:** No new packages. Kenney CC0 art across worlds.
 **For:** Phase 5 (Biomes & Creatures). A structural v2 of the field experience, on top of the Phase 1–3 foundation + the field-rendering rework.
 
