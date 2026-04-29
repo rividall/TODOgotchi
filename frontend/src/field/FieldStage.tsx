@@ -561,6 +561,13 @@ export function FieldStage({
 
   const handleApplicationInit = useCallback(() => {}, []);
 
+  // Determine which creature sheets are active for this world and wait for all
+  // of them before mounting the Application. @pixi/react cannot reliably add
+  // sprites to an already-mounted scene when props change from null → non-null,
+  // so the Application must mount with sprites present from the very first render.
+  const activeSheets = world === "Graveyard" ? graveyardSheets : sheets;
+  const creaturesReady = activeSheets.every((s) => s !== null);
+
   return (
     <div
       ref={wrapRef}
@@ -572,7 +579,7 @@ export function FieldStage({
         }
       }}
     >
-      <Application
+      {creaturesReady && <Application
         resizeTo={wrapRef}
         backgroundAlpha={0}
         antialias
@@ -595,7 +602,7 @@ export function FieldStage({
           liftSignal={liftSignal}
           world={world}
         />
-      </Application>
+      </Application>}
     </div>
   );
 }

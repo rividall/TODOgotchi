@@ -7,11 +7,9 @@ import type { DecorationSpec, DecorationTextures } from "@/field/FieldDecoration
 import { preloadDecorationTextures, useDecorationTextures } from "@/field/FieldDecorations";
 import "@/field/pixiExtend";
 import type { DinoSpritesheet } from "@/field/useDinoSpritesheet";
-import { preloadDinoSpritesheets, useDinoSpritesheets } from "@/field/useDinoSpritesheet";
+import { useDinoSpritesheets } from "@/field/useDinoSpritesheet";
 
-// Kick off all asset downloads the moment this module is imported — before any
-// component mounts — so sprites are ready (or nearly ready) on first render.
-preloadDinoSpritesheets();
+// Pre-warm the Forest decoration textures as soon as this module is imported.
 preloadDecorationTextures("Forest");
 
 const LANDING_SCALE = 16;
@@ -215,9 +213,16 @@ export function LandingDino(): React.ReactElement {
     return () => ro.disconnect();
   }, []);
 
+  // Gate the Application on ALL sheets (vita + 3 companions) being ready.
+  // @pixi/react's reconciler cannot retroactively add sprites to an already-mounted
+  // scene — every sprite that should appear must be present at first render.
+  // Gating only on vita causes companions to be silently dropped when their sheets
+  // resolve after Application mount (race between 4 independent fetches).
+  const allSheetsReady = sheets.every((s) => s !== null);
+
   return (
     <div ref={wrapRef} className="landing-dino-wrap">
-      {dims.w > 0 && (
+      {dims.w > 0 && allSheetsReady && (
         <Application
           resizeTo={wrapRef}
           backgroundAlpha={0}
