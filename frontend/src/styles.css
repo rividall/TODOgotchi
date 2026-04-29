@@ -217,6 +217,7 @@ body {
 /* World-specific backgrounds — override time-of-day when a world has a fixed bg. */
 .field-stage-world-Forest_retro { background: #ffffff !important; }
 .field-stage-world-Forest       { background: #84c669 !important; }
+.field-stage-world-Space        { background: #0b0c1a !important; }
 
 /* Forest_retro: purple tint overlay over the whole field */
 .field-stage-world-Forest_retro::after {
@@ -1333,12 +1334,192 @@ body {
 
 @media (max-width: 768px) {
   .task-panel {
+    left: 0;
+    right: 0;
     width: 100%;
+    padding: 16px;
     border-left: none;
   }
+
+  .task-panel-close {
+    font-size: 1.75rem;
+    min-width: 44px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* border-box on everything inside the panel so padding never adds to width */
+  .task-panel,
+  .task-panel * {
+    box-sizing: border-box;
+  }
+
+  /* iOS Safari auto-zoom prevention — inputs must be >= 16px */
+  .task-panel-field input,
+  .task-panel-field textarea,
+  .checklist-add input,
+  .label-create input[type="text"],
+  .feedback-textarea,
+  .feedback-email {
+    font-size: 16px;
+  }
+
+  /* Full-width only for inputs that live in a column/block context */
+  .task-panel-field input,
+  .task-panel-field textarea,
+  .label-create input[type="text"] {
+    width: 100%;
+  }
+
+  .task-panel-actions {
+    flex-direction: column-reverse;
+    gap: 10px;
+  }
+
+  .task-panel-actions button {
+    width: 100%;
+    padding: 14px;
+    font-size: 1rem;
+    justify-content: center;
+  }
+
+  .act-cta {
+    padding: 14px;
+    font-size: 1rem;
+  }
+
+  .label-picker-actions {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .label-picker-actions button {
+    width: 100%;
+    padding: 10px;
+    text-align: center;
+  }
+
   .completed-drawer {
     left: 12px;
     bottom: 12px;
+  }
+
+  .field-header {
+    padding: 10px 16px;
+    position: relative;
+  }
+
+  .field-header h1 {
+    font-size: 1.1rem;
+  }
+
+  .field-user--desktop {
+    display: none;
+  }
+
+  .guest-banner {
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px 16px;
+    font-size: 0.8rem;
+    align-items: flex-start;
+  }
+
+  .feedback-fab {
+    bottom: 80px;
+  }
+}
+
+/* ---------- Hamburger menu ---------- */
+
+.hamburger-btn {
+  display: none;
+  background: transparent;
+  border: 1px solid var(--primary-300);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 1.1rem;
+  cursor: pointer;
+  color: var(--gray-700);
+  line-height: 1;
+}
+
+.hamburger-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  left: 0;
+  background: white;
+  border-bottom: 2px solid var(--primary-200);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  z-index: 50;
+  animation: tab-actions-in 0.15s ease-out;
+}
+
+.hamburger-label {
+  padding: 12px 20px 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--gray-500);
+  border-bottom: 1px solid var(--primary-100);
+}
+
+.hamburger-menu .world-switcher {
+  margin: 10px 20px;
+  width: calc(100% - 40px);
+}
+
+.hamburger-item {
+  display: block;
+  padding: 12px 20px;
+  border-radius: 0;
+  font-size: 0.95rem;
+  text-align: left;
+  border-bottom: 1px solid var(--primary-100);
+  text-decoration: none;
+}
+
+.hamburger-item:last-child {
+  border-bottom: none;
+}
+
+.hamburger-btn-row {
+  display: flex;
+  gap: 10px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--primary-100);
+}
+
+.hamburger-btn-row .field-header-btn {
+  flex: 1;
+  text-align: center;
+}
+
+.hamburger-signout {
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: var(--gray-700);
+  font-family: inherit;
+  cursor: pointer;
+  padding: 14px 20px;
+  text-align: center;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.hamburger-signout:hover {
+  background: var(--primary-50);
+}
+
+@media (max-width: 768px) {
+  .hamburger-btn {
+    display: block;
   }
 }
 

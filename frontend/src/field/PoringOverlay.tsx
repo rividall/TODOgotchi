@@ -24,6 +24,7 @@ export function PoringOverlay({
   onCaress,
 }: Props): React.ReactElement {
   const tabRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  const overlayRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number>(0);
 
   const sortedPorings = useMemo(() => {
@@ -37,11 +38,17 @@ export function PoringOverlay({
 
   useEffect(() => {
     const tick = (): void => {
+      const overlayW = overlayRef.current?.clientWidth ?? 9999;
       for (const [id, tabEl] of tabRefs.current) {
         const fb = bodiesRef.current.get(id);
         if (!fb) continue;
+        const tabW = tabEl.offsetWidth;
+        const tabH = tabEl.offsetHeight;
         const offsetY = fb.radius + 14;
-        tabEl.style.transform = `translate3d(${fb.body.position.x}px, ${fb.body.position.y - offsetY}px, 0) translate(-50%, -100%)`;
+        // Center the tab on the poring, then clamp so it never bleeds off either edge.
+        const x = Math.max(4, Math.min(fb.body.position.x - tabW / 2, overlayW - tabW - 4));
+        const y = fb.body.position.y - offsetY - tabH;
+        tabEl.style.transform = `translate3d(${x}px, ${y}px, 0)`;
       }
       rafRef.current = requestAnimationFrame(tick);
     };
@@ -50,7 +57,7 @@ export function PoringOverlay({
   }, [bodiesRef]);
 
   return (
-    <div className="poring-overlay">
+    <div ref={overlayRef} className="poring-overlay">
       {sortedPorings.map((p) => (
         <PoringTab
           key={p.id}

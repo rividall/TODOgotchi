@@ -52,7 +52,7 @@ function generateLandingDecorations(w: number, h: number, textures: DecorationTe
       const x = genX();
       const y = genY();
       if (canPlace(x, y, specs, minSpacing)) {
-        specs.push({ x, y, texture, scale, anchorX: 0.5, anchorY });
+        specs.push({ x, y, texture, scale, anchorX: 0.5, anchorY, rotates: false });
         return;
       }
     }
@@ -72,7 +72,7 @@ function generateLandingDecorations(w: number, h: number, textures: DecorationTe
         const dy = y - cy;
         if (dx * dx + dy * dy < SAFE_R * SAFE_R) continue;
         if (canPlace(x, y, specs, minSpacing)) {
-          specs.push({ x, y, texture: pick(scatter), scale: scatterScale, anchorX: 0.5, anchorY });
+          specs.push({ x, y, texture: pick(scatter), scale: scatterScale, anchorX: 0.5, anchorY, rotates: false });
           break;
         }
       }
