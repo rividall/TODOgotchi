@@ -4,10 +4,15 @@ import type { AnimatedSprite as PixiAnimatedSprite, Container as PixiContainer, 
 import { useEffect, useRef, useState } from "react";
 
 import type { DecorationSpec, DecorationTextures } from "@/field/FieldDecorations";
-import { useDecorationTextures } from "@/field/FieldDecorations";
+import { preloadDecorationTextures, useDecorationTextures } from "@/field/FieldDecorations";
 import "@/field/pixiExtend";
 import type { DinoSpritesheet } from "@/field/useDinoSpritesheet";
-import { useDinoSpritesheets } from "@/field/useDinoSpritesheet";
+import { preloadDinoSpritesheets, useDinoSpritesheets } from "@/field/useDinoSpritesheet";
+
+// Kick off all asset downloads the moment this module is imported — before any
+// component mounts — so sprites are ready (or nearly ready) on first render.
+preloadDinoSpritesheets();
+preloadDecorationTextures("Forest");
 
 const LANDING_SCALE = 16;
 const ANIM_SPEED = 0.06;

@@ -169,6 +169,11 @@ async function loadWorld(world: WorldId): Promise<DecorationTextures> {
   return { scatter, scatter2, trees, config: cfg };
 }
 
+/** Call at module level to start downloading a world's decoration textures immediately. */
+export function preloadDecorationTextures(world: WorldId): void {
+  if (!caches.has(world)) caches.set(world, loadWorld(world));
+}
+
 export function useDecorationTextures(world: WorldId): DecorationTextures | null {
   const [textures, setTextures] = useState<DecorationTextures | null>(null);
 

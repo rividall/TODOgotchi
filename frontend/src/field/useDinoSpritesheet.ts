@@ -32,6 +32,13 @@ export function dinoVariantIndex(id: number): number {
 
 const sheetCaches = new Array<Promise<DinoSpritesheet> | null>(VARIANTS.length).fill(null);
 
+/** Call at module level to start downloading all dino spritesheets immediately. */
+export function preloadDinoSpritesheets(): void {
+  VARIANTS.forEach((_, i) => {
+    if (!sheetCaches[i]) sheetCaches[i] = loadVariant(i);
+  });
+}
+
 async function loadVariant(index: number): Promise<DinoSpritesheet> {
   const { jsonUrl, pngUrl } = VARIANTS[index];
   const [json, baseTexture] = await Promise.all([
