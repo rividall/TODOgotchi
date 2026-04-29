@@ -198,33 +198,74 @@ Adds a `world` dimension to labels — porings in a forest, cars in a city, spir
 
 ---
 
-## Deployment Phase: Server Setup **NOT STARTED**
+## Deployment Phase **DONE (2026-04-29)**
 
-This phase takes TODOgotchi from "works on localhost" to "running on the server behind porings.buenalynch.com." Read [SERVER-INFRASTRUCTURE.md](SERVER-INFRASTRUCTURE.md) before starting.
+- [x] `docker-compose.yml` covers db + backend + frontend
+- [x] `.env` created on server with real SECRET_KEY, POSTGRES_PASSWORD, ADMIN_API_KEY, ADMIN_EMAILS
+- [x] CNAME record in Cloudflare DNS: `todogotchi.buenalynch.com` → tunnel UUID
+- [x] Ingress rule in `/etc/cloudflared/config.yml` + cloudflared restarted
+- [x] Verified at `https://todogotchi.buenalynch.com`
+- [ ] Add HTTP monitor in Uptime Kuma (uptime.buenalynch.com) — pending
 
-### Pre-flight Checks
-- [ ] Read SERVER-INFRASTRUCTURE.md to confirm no port conflicts (3004, 8004, 5434 are the chosen ports)
-- [ ] Subdomain: `porings.buenalynch.com`
+---
 
-### Docker
-- [ ] `docker-compose.yml` covers db + backend + frontend
-- [ ] `.env` created from `.env.example` on the server with real values
-- [ ] Test full stack locally with `sudo docker compose up --build`
+## Landing Page + Guest Mode **DONE (2026-04-29)**
 
-### Cloudflare Tunnel & DNS
-- [ ] Add CNAME record in Cloudflare DNS: `porings.buenalynch.com` → `ddb937a3-98ac-46f8-89fe-9e7970ad9c64`
-- [ ] Add ingress rule in `/etc/cloudflared/config.yml` on cepelynvault:
-  ```yaml
-  - hostname: porings.buenalynch.com
-    service: http://localhost:3004
-  ```
-- [ ] Restart cloudflared: `sudo systemctl restart cloudflared`
-- [ ] Verify subdomain resolves and reaches the field
+- [x] `LandingPage` at `/` — full-screen Forest world with animated vita dino, "Join as guest" + "Log in" buttons
+- [x] `LandingDino` — standalone PixiJS canvas with forest3 decorations, 3 companion dinos
+- [x] Guest mode — in-memory store (`src/guest/store.ts`) with 4 real preset critters, full XP/tier/checklist/label interactions, nothing persisted; sessionStorage-backed flag survives HMR
+- [x] `ProtectedRoute` allows guests; `AuthContext` adds `isGuest` + `enterGuestMode()`
+- [x] Register page replaced with "account creation closed" message
 
-### Monitoring
-- [ ] Add HTTP monitor in Uptime Kuma (uptime.buenalynch.com) for `porings.buenalynch.com`
+---
 
-### Documentation
-- [ ] Update SERVER-INFRASTRUCTURE.md: add TODOgotchi container entry, ports, subdomain, tunnel ingress
-- [ ] Update README.md: confirm Server & Deployment table is filled
-- [ ] Create docs/research/todogotchi-deployment.md with setup steps, troubleshooting, and rollback instructions
+## Workspace System **DONE (2026-04-29)**
+
+- [x] `workspaces` table + `user_workspaces` junction (migration 0006)
+- [x] `workspace_id` on `users` and `porings`
+- [x] All poring operations (list, create, edit, delete, act, checklist, labels) scoped to workspace
+- [x] Users with no workspace see an empty field
+- [x] Labels scoped to workspace (not per-user) — migration 0007
+
+---
+
+## Admin API **DONE (2026-04-29)**
+
+- [x] `X-Admin-Key` auth (env var `ADMIN_API_KEY`) — machine-to-machine, no JWT
+- [x] `GET/POST/DELETE /admin/users` — list, create, delete users
+- [x] `GET/POST/DELETE /admin/workspaces` — list, create, delete workspaces
+- [x] `POST/DELETE /admin/workspaces/{id}/members` — add/remove members by email
+- [x] nginx proxy updated to forward `/admin/` to backend
+- [x] `ADMIN_EMAILS` env var grants in-app moderation button to listed emails
+
+---
+
+## Feedback System **DONE (2026-04-29)**
+
+- [x] `feedback` table (migration 0005): `message`, `email` (nullable, store-only), `created_at`
+- [x] `GET /api/v1/feedback` + `POST /api/v1/feedback` — public, no auth
+- [x] `GET /admin/feedback` + `DELETE /admin/feedback/{id}` — X-Admin-Key only
+- [x] `FeedbackModal` — floating "💬 Leave feedback" button on guest field, comment list + form
+- [x] `AdminPage` at `/admin` — moderation UI with emails visible, delete button
+
+---
+
+## Space World **DONE (2026-04-29)**
+
+- [x] 4 ship PNG variants (`ship1_blue`, `ship2_orange`, `ship3_orange`, `ship4_red`) loaded via `useSpaceAssets`
+- [x] Ships rotate each tick to face velocity direction (`Math.atan2(vx, -vy)`)
+- [x] 6 meteor/asteroid variants scattered freely; each spins at random speed/direction per tick
+- [x] Star-grid background (`black.png` tiled to cover entire canvas)
+- [x] Dark background `#0b0c1a`; no shadow ellipse; ambient particles static (don't drift)
+
+---
+
+## Graveyard World **DONE (2026-04-29)**
+
+- [x] 5 character variants (`death`, `devil`, `pumpkin`, `skel`, `zombie`) loaded as frame sequences via `useGraveyardCreatures` — compatible with `DinoSpritesheet` interface
+- [x] Variant count variable (`id % activeSheets.length`) — supports any count, not hardcoded to 4
+- [x] Paired trees (`tree1`/`tree2`) stacked with exact edge alignment
+- [x] Graves (`grave`, `grave2`) scattered in 30–70% center zone, independent of tile collision
+- [x] Ground tiles (`tile_0019`, `tile_0039`, `tile_0129`) scattered across interior
+- [x] Purple background `#a386ce` (sampled from `base.png`)
+- [x] Creature y-offset `-20px` so shadow falls at feet, not behind body

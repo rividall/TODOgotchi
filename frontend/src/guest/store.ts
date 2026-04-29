@@ -22,10 +22,20 @@ function computeTier(xp: number): GrowthTier {
 }
 
 // ─── Guest mode flag ──────────────────────────────────────────────────────────
+// Backed by sessionStorage so HMR module re-evaluation doesn't lose the flag.
+// sessionStorage clears on tab close, so guest sessions never bleed across browser sessions.
 
-let _guestMode = false;
+const GUEST_KEY = "todogotchi:guestMode";
+let _guestMode = typeof sessionStorage !== "undefined" && sessionStorage.getItem(GUEST_KEY) === "1";
+
 export function isGuestMode(): boolean { return _guestMode; }
-export function setGuestMode(active: boolean): void { _guestMode = active; }
+export function setGuestMode(active: boolean): void {
+  _guestMode = active;
+  if (typeof sessionStorage !== "undefined") {
+    if (active) sessionStorage.setItem(GUEST_KEY, "1");
+    else sessionStorage.removeItem(GUEST_KEY);
+  }
+}
 
 // ─── Preset data ──────────────────────────────────────────────────────────────
 // IDs 0–3 map to dino variants vita / doux / mort / tard (id % 4).
@@ -33,16 +43,13 @@ export function setGuestMode(active: boolean): void { _guestMode = active; }
 
 const INITIAL_LABELS: Label[] = [
   { id: 0, name: "Work",     color: "#F43F5E" },
-  { id: 1, name: "software", color: "#F43F5E" },
-  { id: 2, name: "family",   color: "#F32CE8" },
-  { id: 3, name: "Home",     color: "#F43F5E" },
 ];
 
 const INITIAL_PORINGS: Poring[] = [
   {
     id: 0,
     title: "Read me!",
-    description: "Hey there stranger!\nThis is a hobby project based on ideacritters.com by @koysun.\nAs part of my full-stack development self-teaching sprint, I wanted to expand on the original by adding more data fields, modes, animations, and user/guest accounts to practice back and front end architecture, design and development.\nThis Critter is fully levelled, which you can tell from it's aura. Full level unlocks more interactions.\n[COMING] Feel free to drop Feedback on the comments!",
+    description: "Hey there stranger!\nThis is a hobby project based on ideacritters.com by @koysun.\nAs part of my full-stack development self-teaching sprint, I wanted to expand on the original by adding more data fields, modes, animations, and user/guest accounts to practice back and front end architecture, design and development.\n You can find different worlds in a dropdown in the upper bar/hamburguer menu. This Critter is fully levelled, which you can tell from it's aura. Full level unlocks more interactions.",
     xp: 72,
     growth_tier: "ripe",
     status: "alive",
@@ -57,10 +64,11 @@ const INITIAL_PORINGS: Poring[] = [
       { id: 4, poring_id: 0, text: "Deploy to homeLab, connect cloudflare",          completed: true, order: 5 },
       { id: 5, poring_id: 0, text: "Write the Dino readme",                          completed: true, order: 6 },
       { id: 6, poring_id: 0, text: "Create form for feedback",                       completed: true, order: 7 },
+      { id: 17, poring_id: 0, text: "Add Space and graveyard worlds.",                       completed: true, order: 7 },
     ],
     labels: [
       { id: 0, name: "Work",     color: "#F43F5E" },
-      { id: 1, name: "software", color: "#F43F5E" },
+      { id: 1, name: "software", color: "#5af43f" },
     ],
   },
   {
@@ -139,6 +147,7 @@ export function resetGuestStore(): void {
   _nextPoringId = 4;
   _nextItemId = 17;
   _nextLabelId = 4;
+  setGuestMode(false);
 }
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────

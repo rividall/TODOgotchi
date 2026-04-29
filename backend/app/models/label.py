@@ -13,14 +13,14 @@ porings_labels = Table(
 
 class Label(Base):
     __tablename__ = "labels"
-    __table_args__ = (UniqueConstraint("user_id", "name", name="uq_labels_user_name"),)
+    __table_args__ = (UniqueConstraint("workspace_id", "name", name="uq_labels_workspace_name"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     name: Mapped[str] = mapped_column(String(64), nullable=False)
     color: Mapped[str] = mapped_column(String(7), nullable=False)  # hex #RRGGBB
-    user_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False,
+    workspace_id: Mapped[int | None] = mapped_column(
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=True,
         index=True,
     )
 

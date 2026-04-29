@@ -203,7 +203,7 @@ export function FieldPage(): React.ReactElement {
             <select
               className="world-switcher"
               value={world}
-              onChange={(e) => setWorld(e.target.value as WorldId)}
+              onChange={(e) => { setWorld(e.target.value as WorldId); setMenuOpen(false); }}
               onClick={(e) => e.stopPropagation()}
             >
               {WORLD_IDS.map((w) => (

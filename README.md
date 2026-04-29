@@ -62,22 +62,26 @@ todogotchi/
 ├── backend/
 │   ├── app/
 │   │   ├── core/           # config, database, security
-│   │   ├── models/         # Poring, User, ChecklistItem, Label, XPEvent
-│   │   ├── routers/        # auth, porings, checklist, labels
+│   │   ├── models/         # Poring, User, ChecklistItem, Label, XPEvent, Feedback, Workspace
+│   │   ├── routers/        # auth, porings, checklist, labels, feedback, admin
 │   │   ├── schemas/        # Pydantic request/response models
 │   │   └── services/       # auth_service, xp_service
-│   ├── alembic/            # DB migrations
+│   ├── alembic/            # DB migrations (0001–0007)
 │   ├── tests/
 │   ├── requirements.txt
 │   └── Dockerfile
 ├── frontend/
 │   ├── src/
-│   │   ├── api/            # client.ts (typed fetch wrapper + auth/porings/labels/checklist APIs)
-│   │   ├── auth/           # AuthContext
-│   │   ├── components/     # TaskPanel, ActModal, CompletedDrawer, CreatePoringButton, ChecklistSection, LabelPicker
-│   │   ├── field/          # PixiJS engine: FieldStage, PoringOverlay, PoringTab, useFieldEngine, AmbientParticles,
-│   │   │                   #   FieldDecorations (multi-world), useDinoSpritesheets (4 variants), HeartParticles
-│   │   └── pages/          # FieldPage, LoginPage, RegisterPage
+│   │   ├── api/            # client.ts + auth/porings/labels/checklist/feedback APIs
+│   │   ├── auth/           # AuthContext (user, isGuest, enterGuestMode)
+│   │   ├── components/     # TaskPanel, ActModal, CompletedDrawer, CreatePoringButton,
+│   │   │                   #   ChecklistSection, LabelPicker, FeedbackModal
+│   │   ├── field/          # PixiJS engine: FieldStage, PoringOverlay, PoringTab, useFieldEngine,
+│   │   │                   #   AmbientParticles, FieldDecorations (multi-world), LandingDino,
+│   │   │                   #   useDinoSpritesheets (4 variants), useSpaceAssets, useGraveyardCreatures,
+│   │   │                   #   HeartParticles
+│   │   ├── guest/          # store.ts — in-memory guest store (sessionStorage-backed flag)
+│   │   └── pages/          # LandingPage, FieldPage, LoginPage, RegisterPage, AdminPage
 │   ├── index.html
 │   ├── vite.config.ts
 │   └── Dockerfile
@@ -103,8 +107,8 @@ todogotchi/
 - **Growth tiers**: Computed from XP. Seed (0–9), Happy (10–29), Chubby (30–59), Ripe (60+). Tier is returned by the API — frontend picks the right visual based on it.
 - **Poring positions**: NOT persisted. Client-side only — each poring is a Matter.js rigid body seeded at a random position when it enters the field, and Matter's physics loop drives the motion thereafter.
 - **Field rendering**: PixiJS (WebGL) draws the poring sprites, ripe glow, and faces at 60 fps. A sibling DOM overlay layer absolutely-positions a `PoringTab` above each poring by reading body coords every frame via `requestAnimationFrame`. This hybrid canvas + DOM approach keeps labels crisp and accessible while the canvas does the heavy-lift rendering.
-- **Dino variants**: Four sprite sheets (`vita`, `doux`, `mort`, `tard`) loaded via `useDinoSpritesheets()`. Poring ID modulo 4 picks the variant — deterministic and stable across sessions.
-- **World system**: `WorldId` (`"forest" | "forest2" | "forest3"`) selectable from a header dropdown. Each world defines its own scatter/tree asset globs, tile scale, anchor, pixel-art flag, min-spacing, and CSS background. forest uses Kenney 512×512 isometric tiles; forest2/forest3 use 16×16 pixel-art tiles at 5× nearest-neighbor scale.
+- **Creature variants**: Each world has its own creature set and count. Forest worlds use 4 dino sprite sheets (`vita`, `doux`, `mort`, `tard`) via `useDinoSpritesheets()`. Space uses 4 static ship PNGs (`useSpaceAssets`). Graveyard uses 5 character variants (`death`, `devil`, `pumpkin`, `skel`, `zombie`) loaded as frame sequences via `useGraveyardCreatures`. Variant index is always `id % creatures.length` — never hardcoded.
+- **World system**: `WorldId` (`"Forest" | "Space" | "Graveyard"` — plus hidden `"Forest_ISO" | "Forest_retro"`) selectable from header dropdown. Each world defines scatter/tree asset globs, scales, anchors, pixel-art flag, min-spacing, background CSS, creature loader, and behavior flags (`treesRotate`, `treePaired`, `scatterAsGrid`). Space ships rotate to face velocity; asteroids spin in place. Graveyard trees are paired (top+bottom halves stacked). Labels are workspace-scoped, not per-user.
 - **Top margin**: `FIELD_TOP_MARGIN = 48` (exported from `useFieldEngine`) pushes the top physics wall 48 px below the canvas edge so dinos and their floating tabs never disappear off the top.
 - **Click flow**: Click a poring → its tab expands in place (Edit / Act / Delete buttons). Click "Edit" → the `TaskPanel` sidebar slides in. Click "Act" on a ripe poring (or click a ripe poring directly) → `ActModal` opens. Background click collapses any expanded tab.
 - **UI motion**: GSAP drives the moments that need juice — tier-up flash on a Pixi container when a poring crosses a growth threshold (scale pop + elastic return), CTA glow in the TaskPanel, modal entrances.
@@ -137,7 +141,7 @@ sudo docker compose up -d --build
 
 ## API Documentation
 
-**Current Status:** 10 endpoints across 2 domains (Phase 1)
+**Current Status:** 35+ endpoints across 8 domains
 
 **Resources:**
 - [API Reference](docs/API.md) - Complete endpoint list with examples
@@ -155,9 +159,15 @@ See [docs/PROGRESS.md](docs/PROGRESS.md) for the full implementation checklist.
 - ✅ **Phase 1 done** — Auth + poring CRUD + field canvas
 - ✅ **Phase 2 done** — Feeding & Growth: checklists, labels, tier-up animation
 - ✅ **Phase 3 done** — Maturation & Act: act endpoint, ActModal, completion burst, completed drawer
-- ✅ **Field engine rework done** — React 19, PixiJS WebGL canvas + Matter.js physics, DOM-overlay floating tabs, sidebar-only-on-edit, GSAP tier-up juice, tsparticles ambient atmosphere
-- ✅ **Field art pass done** — Kenney Nature Kit decorations (scatter + edge trees), 4 dino sprite variants, multi-world system (forest / forest2 / forest3), per-world backgrounds + purple tint overlay, 48 px top safe zone
-- ⬜ **Deployment phase not started** — Docker + tunnel + subdomain
+- ✅ **Field engine rework done** — React 19, PixiJS WebGL canvas + Matter.js physics, DOM-overlay floating tabs, GSAP tier-up juice, tsparticles ambient atmosphere
+- ✅ **Field art pass done** — dino sprite variants, multi-world system, per-world backgrounds
+- ✅ **Landing page done** — public landing with animated dino field, guest + login buttons
+- ✅ **Guest mode done** — in-memory store with 4 real preset critters, full XP interactions, no backend
+- ✅ **Workspace system done** — all porings and labels scoped to workspace; admin API (X-Admin-Key) for user/workspace management
+- ✅ **Feedback system done** — public POST/GET, admin moderation page at `/admin`
+- ✅ **Space world done** — ships rotate to face velocity, asteroids spin, star-grid background
+- ✅ **Graveyard world done** — 5 character variants, paired trees, graves, ground tiles
+- ✅ **Deployed** — running at `todogotchi.buenalynch.com` via Cloudflare Tunnel
 
 ## Documentation
 

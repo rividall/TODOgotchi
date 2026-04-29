@@ -1,7 +1,7 @@
 # API Reference
 
-**Base URL (local):** `http://localhost:8004/api/v1`
-**Base URL (production):** `https://porings.buenalynch.com/api/v1`
+**Base URL (local):** `http://localhost:8004`
+**Base URL (production):** `https://todogotchi.buenalynch.com`
 
 **Interactive Documentation:** When running the backend, visit [http://localhost:8004/docs](http://localhost:8004/docs) for Swagger UI with live API testing.
 
@@ -9,24 +9,36 @@
 
 ## Overview
 
-TODOgotchi API is a RESTful API built with FastAPI. All routes are prefixed with `/api/v1/`.
+TODOgotchi API is a RESTful API built with FastAPI.
 
-**Current Status:** 20 endpoints across 5 domains (Phases 1–3, implemented 2026-04-23)
+- User-facing routes: `/api/v1/`
+- Admin routes: `/admin/` (require `X-Admin-Key` header, not Bearer)
 
-**Authentication:** Most endpoints require authentication via `Authorization: Bearer <token>` header. Public endpoints are marked with 🌐.
+**Current Status:** 35+ endpoints across 8 domains
 
-**Deployment:** This API runs as a Docker container on `cepelynvault`, exposed via Cloudflare Tunnel at `porings.buenalynch.com`. See [SERVER-INFRASTRUCTURE.md](SERVER-INFRASTRUCTURE.md) for the full traffic flow.
+**Authentication:**
+- Most endpoints require `Authorization: Bearer <access_token>`
+- Public endpoints marked with 🌐
+- Admin endpoints use `X-Admin-Key: <ADMIN_API_KEY>` instead of Bearer — set in `.env`
+
+**Scoping:** All porings and labels are scoped to the user's **workspace**. Users with no workspace see an empty field.
+
+**Deployment:** Docker on `cepelynvault`, exposed via Cloudflare Tunnel at `todogotchi.buenalynch.com`. nginx proxies `/api/` and `/admin/` to the backend container.
 
 ---
 
 ## Table of Contents
 
-1. [Health](#health) - Health check
-2. [Auth](#auth-apiv1auth) - Authentication & account management
-3. [Porings](#porings-apiv1porings) - Poring CRUD (Phase 1)
-4. [Checklist](#checklist-apiv1poringsidichecklist) - Checklist items per poring (Phase 2)
-5. [Labels](#labels-apiv1labels) - Label management (Phase 2)
-6. [Actions](#actions-apiv1poringsidact) - Maturation & completion (Phase 3)
+1. [Health](#health)
+2. [Auth](#auth-apiv1auth)
+3. [Porings](#porings-apiv1porings)
+4. [Checklist](#checklist-apiv1poringsidichecklist)
+5. [Labels](#labels-apiv1labels)
+6. [Actions](#actions-apiv1poringsidact)
+7. [Feedback](#feedback-apiv1feedback) — public comments
+8. [Admin — Users](#admin--users-adminusers)
+9. [Admin — Workspaces](#admin--workspaces-adminworkspaces)
+10. [Admin — Feedback](#admin--feedback-adminfeedback)
 
 ---
 
@@ -76,8 +88,9 @@ GET /api/v1/auth/me
 Authorization: Bearer <access_token>
 
 # Response 200:
-{ "id": 1, "email": "user@example.com", "username": "mark", "created_at": "2026-04-22T..." }
+{ "id": 1, "email": "user@example.com", "username": "mark", "created_at": "2026-04-22T...", "is_admin": false }
 ```
+`is_admin` is `true` if the user's email is in `ADMIN_EMAILS` env var.
 
 ### JWT Tokens
 - **Access Token:** 30 minutes, used in `Authorization: Bearer` header
@@ -222,13 +235,131 @@ All error responses follow this format:
 
 ---
 
-## Future Endpoints (Planned)
+---
 
-See [PROGRESS.md](PROGRESS.md) for upcoming API features by phase.
+## Feedback (`/api/v1/feedback`)
+
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| `GET` | `/api/v1/feedback` | List last 50 comments (message + timestamp, no email) | 🌐 Public |
+| `POST` | `/api/v1/feedback` | Submit a comment | 🌐 Public |
+
+```bash
+POST /api/v1/feedback
+{ "message": "Love this!", "email": "optional@example.com" }
+# email is stored but never returned publicly
+```
 
 ---
 
-**Last Updated:** 2026-04-23
+## Admin — Users (`/admin/users`)
+
+All admin endpoints require `X-Admin-Key: <ADMIN_API_KEY>` header.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/admin/users` | List all users with workspace info |
+| `POST` | `/admin/users` | Create user, optionally assign workspace |
+| `DELETE` | `/admin/users/{id}` | Delete user (cascades porings etc.) |
+
+```bash
+POST /admin/users
+X-Admin-Key: <key>
+{ "email": "alice@example.com", "username": "alice", "password": "pass123", "workspace_id": 1 }
+```
+
+---
+
+## Admin — Workspaces (`/admin/workspaces`)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/admin/workspaces` | List all workspaces with member lists |
+| `POST` | `/admin/workspaces` | Create workspace |
+| `DELETE` | `/admin/workspaces/{id}` | Delete workspace |
+| `POST` | `/admin/workspaces/{id}/members` | Add member by email |
+| `DELETE` | `/admin/workspaces/{id}/members/{user_id}` | Remove member |
+
+```bash
+# Typical new-user workflow:
+curl -X POST https://todogotchi.buenalynch.com/admin/workspaces \
+  -H "X-Admin-Key: $KEY" -H "Content-Type: application/json" \
+  -d '{"name":"My Team"}'
+
+curl -X POST https://todogotchi.buenalynch.com/admin/users \
+  -H "X-Admin-Key: $KEY" -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com","username":"user","password":"pass","workspace_id":1}'
+```
+
+---
+
+## Admin — Feedback (`/admin/feedback`)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/admin/feedback` | List ALL feedback including emails |
+| `DELETE` | `/admin/feedback/{id}` | Delete a comment |
+
+---
+
+## Database Schema
+
+### `workspaces`
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | integer PK | |
+| `name` | varchar(100) | |
+| `created_at` | timestamptz | |
+
+### `user_workspaces`
+| Column | Type | Notes |
+|--------|------|-------|
+| `user_id` | integer FK → users.id | composite PK |
+| `workspace_id` | integer FK → workspaces.id | composite PK |
+
+### `users`
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | integer PK | |
+| `email` | varchar(255) unique | |
+| `username` | varchar(64) unique | |
+| `hashed_password` | varchar(255) | bcrypt — never returned |
+| `workspace_id` | integer FK → workspaces.id nullable | active workspace |
+| `created_at` | timestamptz | |
+
+### `porings`
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | integer PK | |
+| `user_id` | integer FK → users.id | creator (audit trail) |
+| `workspace_id` | integer FK → workspaces.id nullable | scope — all workspace members can edit |
+| `title` | varchar(200) | |
+| `description` | text nullable | |
+| `xp` | integer | ≥ 0 |
+| `status` | enum | `alive` / `completed` |
+| `action_type` | enum nullable | `shipped` / `booked` / `bought` / `done` / `abandoned` |
+| `created_at` | timestamptz | |
+| `updated_at` | timestamptz | |
+
+### `labels`
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | integer PK | |
+| `workspace_id` | integer FK → workspaces.id nullable | shared across whole workspace |
+| `name` | varchar(64) | unique per workspace |
+| `color` | varchar(7) | `#RRGGBB` |
+
+### `feedback`
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | integer PK | |
+| `message` | text | max 1000 chars |
+| `email` | varchar(200) nullable | store-only, never returned to public |
+| `created_at` | timestamptz | |
+
+---
+
+**Last Updated:** 2026-04-29
 **API Version:** v1
 
 ---

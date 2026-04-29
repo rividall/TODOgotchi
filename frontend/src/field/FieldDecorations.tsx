@@ -16,7 +16,7 @@ import { useEffect, useState } from "react";
 // ─── World id ──────────────────────────────────────────────────────────────
 
 export type WorldId = "Forest_ISO" | "Forest_retro" | "Forest" | "Space" | "Graveyard";
-export const WORLD_IDS: WorldId[] = ["Forest_ISO", "Forest_retro", "Forest", "Space", "Graveyard"];
+export const WORLD_IDS: WorldId[] = ["Forest", "Space", "Graveyard"];
 
 // ─── Tile imports (static globs — Vite resolves at build time) ────────────
 
@@ -276,16 +276,21 @@ export function generateDecorations(
   }
 
   // Second scatter pool (e.g. graves in Graveyard — different scale, optional margin).
+  // Collision is checked only against other scatter2 items so that scatter1 tiles
+  // (which can fill the whole field) don't block grave placement on small screens.
   if (scatter2.length > 0 && config.scatter2Scale && config.nScatter2) {
     const pct = config.scatter2MarginPct ?? 0;
     const mX = pct > 0 ? fieldW * pct : SCATTER_MARGIN;
     const mY = pct > 0 ? fieldH * pct : SCATTER_MARGIN;
+    const placed2: DecorationSpec[] = [];
     for (let i = 0; i < config.nScatter2; i++) {
-      for (let attempt = 0; attempt < 20; attempt++) {
+      for (let attempt = 0; attempt < 30; attempt++) {
         const x = mX + rng() * (fieldW - mX * 2);
         const y = mY + rng() * (fieldH - mY * 2);
-        if (canPlace(x, y, specs, minSpacing)) {
-          specs.push({ x, y, texture: scatter2[Math.floor(rng() * scatter2.length)], scale: config.scatter2Scale, anchorX: 0.5, anchorY, rotates: false });
+        if (canPlace(x, y, placed2, minSpacing)) {
+          const spec: DecorationSpec = { x, y, texture: scatter2[Math.floor(rng() * scatter2.length)], scale: config.scatter2Scale, anchorX: 0.5, anchorY, rotates: false };
+          specs.push(spec);
+          placed2.push(spec);
           break;
         }
       }

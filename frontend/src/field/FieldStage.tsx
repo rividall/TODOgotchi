@@ -565,6 +565,7 @@ export function FieldStage({
     <div
       ref={wrapRef}
       className={`field-stage field-stage-${timeOfDay} field-stage-world-${world}`}
+      onDragStart={(e) => e.preventDefault()}
       onClick={(e) => {
         if (e.target === e.currentTarget || (e.target as HTMLElement).tagName === "CANVAS") {
           onBackgroundClick();
