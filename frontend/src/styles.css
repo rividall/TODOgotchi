@@ -218,6 +218,7 @@ body {
 .field-stage-world-Forest_retro { background: #ffffff !important; }
 .field-stage-world-Forest       { background: #84c669 !important; }
 .field-stage-world-Space        { background: #0b0c1a !important; }
+.field-stage-world-Graveyard    { background: #a386ce !important; }
 
 /* Forest_retro: purple tint overlay over the whole field */
 .field-stage-world-Forest_retro::after {

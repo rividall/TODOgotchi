@@ -5,6 +5,7 @@ import type {
   AnimatedSprite as PixiAnimatedSprite,
   Container as PixiContainer,
   Graphics as PixiGraphics,
+  Texture,
 } from "pixi.js";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -19,7 +20,9 @@ import {
 import type { DecorationTextures, WorldId } from "@/field/FieldDecorations";
 import { poringColor } from "@/field/poringColor";
 import type { DinoAnim, DinoSpritesheet } from "@/field/useDinoSpritesheet";
-import { dinoVariantIndex, useDinoSpritesheets } from "@/field/useDinoSpritesheet";
+import { useDinoSpritesheets } from "@/field/useDinoSpritesheet";
+import { useGraveyardCreatures } from "@/field/useGraveyardCreatures";
+import { useSpaceShipTextures } from "@/field/useSpaceAssets";
 import type { FieldBody } from "@/field/useFieldEngine";
 import { FIELD_IDLE_FRICTION_AIR, FIELD_TOP_MARGIN } from "@/field/useFieldEngine";
 import { useTimeOfDay } from "@/field/useTimeOfDay";
@@ -34,11 +37,11 @@ const TIER_SPRITE_SCALE: Record<GrowthTier, number> = {
 };
 
 const ANIM_SPEED: Record<DinoAnim, number> = {
-  idle: 0.06, // slow breathing
-  crouch: 0.04, // single-frame; speed irrelevant
-  sneak: 0.13, // medium creep
+  idle: 0.06,
+  crouch: 0.04,
+  sneak: 0.13,
   move: 0.15,
-  kick: 0.22, // snappy
+  kick: 0.22,
   hurt: 0.15,
 };
 
@@ -47,10 +50,9 @@ const CROUCH_DURATION = 2000;
 const CROUCH_INTERVAL = [5000, 7000] as const;
 const SNEAK_DURATION = 5000;
 const SNEAK_INTERVAL = [7000, 9000] as const;
-const SNEAK_FRICTION_AIR = 0.005; // glide while moving
+const SNEAK_FRICTION_AIR = 0.005;
 const SNEAK_SPEED = 1.8;
 
-// Caress = a happy sprint. Faster than sneak, uses the "move" run cycle.
 const CARESS_RUN_DURATION = 3000;
 const CARESS_RUN_SPEED = 3.6;
 
@@ -102,10 +104,13 @@ interface SceneProps {
   caressSignal: CaressSignal | null;
   expandedId: number | null;
   onPoringClick: (id: number) => void;
-  sheets: (DinoSpritesheet | null)[];
+  sheets: (DinoSpritesheet | null)[];       // dino (forest worlds)
+  graveyardSheets: (DinoSpritesheet | null)[]; // graveyard world
+  shipTextures: Texture[] | null;
   decorTextures: DecorationTextures | null;
   fieldDims: { w: number; h: number };
   liftSignal: { id: number; lifted: boolean; nonce: number } | null;
+  world: WorldId;
 }
 
 function Scene({
@@ -116,17 +121,30 @@ function Scene({
   expandedId,
   onPoringClick,
   sheets,
+  graveyardSheets,
+  shipTextures,
   decorTextures,
   fieldDims,
   liftSignal,
+  world,
 }: SceneProps): React.ReactElement {
+  // Pick the right creature sheets for the active world. Variant index is
+  // always id % activeSheets.length so count is never hardcoded.
+  const activeSheets = world === "Graveyard" ? graveyardSheets : sheets;
   const decorContainerRef = useRef<PixiContainer | null>(null);
+  // Rotation speed (rad/frame) per decoration child — non-zero only for rotating worlds.
+  const decorRotationsRef = useRef<number[]>([]);
+  const isSpace = world === "Space";
+  const isGraveyard = world === "Graveyard";
+  // Graveyard sprites fill their frame lower than dinos, so offset them upward
+  // so the shadow ellipse falls at the character's feet rather than behind the body.
+  const creatureYOffset = isGraveyard ? -20 : 0;
 
-  // Build decoration sprites imperatively once textures + bounds are ready.
   useEffect(() => {
     const c = decorContainerRef.current;
     if (!c || !decorTextures || fieldDims.w === 0) return;
     c.removeChildren();
+    decorRotationsRef.current = [];
     const specs = generateDecorations(fieldDims.w, fieldDims.h, decorTextures);
     for (const s of specs) {
       const sprite = new Sprite(s.texture);
@@ -136,14 +154,18 @@ function Scene({
       sprite.y = s.y;
       sprite.eventMode = "none";
       c.addChild(sprite);
+      // Non-zero speed only for decoration tiles marked as rotating (e.g. asteroids).
+      decorRotationsRef.current.push(
+        s.rotates ? (Math.random() * 0.007 + 0.002) * (Math.random() > 0.5 ? 1 : -1) : 0,
+      );
     }
-  }, [decorTextures, fieldDims]);
+  }, [decorTextures, fieldDims, world]);
 
   const containerRefs = useRef<Map<number, PixiContainer>>(new Map());
-  // Per-poring lift offset tweened by GSAP — applied to sprite.y each tick.
   const liftYRefs = useRef<Map<number, { y: number }>>(new Map());
   const ripeGlowRefs = useRef<Map<number, PixiGraphics>>(new Map());
   const spriteRefs = useRef<Map<number, PixiAnimatedSprite>>(new Map());
+  const shipRefs = useRef<Map<number, Sprite>>(new Map());
   const behaviorRef = useRef<Map<number, DinoBehavior>>(new Map());
   const glowPhaseRef = useRef(0);
   const prevTiersRef = useRef<Map<number, GrowthTier>>(new Map());
@@ -152,7 +174,7 @@ function Scene({
   const playAnim = useCallback(
     (id: number, anim: DinoAnim, opts: { loop?: boolean; onComplete?: () => void } = {}): void => {
       const sprite = spriteRefs.current.get(id);
-      const sheet = sheets[dinoVariantIndex(id)];
+      const sheet = activeSheets[id % activeSheets.length];
       if (!sprite || !sheet) return;
       sprite.textures = sheet.textures[anim];
       sprite.animationSpeed = ANIM_SPEED[anim];
@@ -160,36 +182,39 @@ function Scene({
       sprite.onComplete = opts.onComplete;
       sprite.gotoAndPlay(0);
     },
-    [sheets],
+    [activeSheets],
   );
 
   useTick(() => {
     glowPhaseRef.current += 0.05;
     const now = performance.now();
 
+    // Rotate asteroid / meteor decorations each frame.
+    const decorC = decorContainerRef.current;
+    if (decorC && decorRotationsRef.current.length > 0) {
+      for (let i = 0; i < decorC.children.length; i++) {
+        const speed = decorRotationsRef.current[i];
+        if (speed) decorC.children[i].rotation += speed;
+      }
+    }
+
     for (const [id, c] of containerRefs.current) {
       const fb = bodiesRef.current.get(id);
       if (!fb) continue;
 
-      // Sync container to body
       c.x = fb.body.position.x;
       c.y = fb.body.position.y;
 
-      // Apply lift offset to sprite (GSAP tweens liftYRefs plain object)
       const sprite = spriteRefs.current.get(id);
-      if (sprite) sprite.y = liftYRefs.current.get(id)?.y ?? 0;
+      if (sprite) sprite.y = (liftYRefs.current.get(id)?.y ?? 0) + creatureYOffset;
 
-      // Behavior state machine
       let state = behaviorRef.current.get(id);
       if (!state) {
         state = newBehavior(now);
         behaviorRef.current.set(id, state);
       }
 
-      // Manual boundary reflection for moving dinos.
-      // Matter's restitution handles most collisions, but circles hitting corners
-      // (two walls simultaneously) can deadlock. Explicitly check each edge and
-      // flip the corresponding velocity component when the body is touching it.
+      // Boundary reflection for moving creatures.
       if (state.action === "sneak" || state.action === "move") {
         const { w, h } = boundsRef.current;
         const r = fb.radius;
@@ -205,25 +230,22 @@ function Scene({
         if (hit) Matter.Body.setVelocity(fb.body, { x: vx, y: vy });
       }
 
-      // Freeze sneak/move immediately when this poring's tab is open.
       const tabOpen = expandedId === id;
       if (tabOpen && (state.action === "sneak" || state.action === "move")) {
         fb.body.frictionAir = FIELD_IDLE_FRICTION_AIR;
         Matter.Body.setVelocity(fb.body, { x: 0, y: 0 });
         state.action = "idle";
-        playAnim(id, "idle");
+        if (!isSpace) playAnim(id, "idle");
       }
 
-      // End the current action when its duration expires.
       if (state.action !== "idle" && now >= state.actionEndsAt) {
         if (state.action === "sneak" || state.action === "move") {
           fb.body.frictionAir = FIELD_IDLE_FRICTION_AIR;
         }
         state.action = "idle";
-        playAnim(id, "idle");
+        if (!isSpace) playAnim(id, "idle");
       }
 
-      // Schedule the next action — sneak/move blocked while tab is open.
       if (state.action === "idle") {
         if (!tabOpen && now >= state.nextSneakAt) {
           const angle = rand(0, Math.PI * 2);
@@ -233,47 +255,45 @@ function Scene({
           Matter.Body.setVelocity(fb.body, { x: vx, y: vy });
           state.action = "sneak";
           state.actionEndsAt = now + SNEAK_DURATION;
-          state.nextSneakAt =
-            now + SNEAK_DURATION + rand(SNEAK_INTERVAL[0], SNEAK_INTERVAL[1]);
-          playAnim(id, "sneak");
-        } else if (now >= state.nextCrouchAt) {
-          // Crouch is always allowed — even while tab is open.
+          state.nextSneakAt = now + SNEAK_DURATION + rand(SNEAK_INTERVAL[0], SNEAK_INTERVAL[1]);
+          if (!isSpace) playAnim(id, "sneak");
+        } else if (!isSpace && now >= state.nextCrouchAt) {
           state.action = "crouch";
           state.actionEndsAt = now + CROUCH_DURATION;
-          state.nextCrouchAt =
-            now + CROUCH_DURATION + rand(CROUCH_INTERVAL[0], CROUCH_INTERVAL[1]);
+          state.nextCrouchAt = now + CROUCH_DURATION + rand(CROUCH_INTERVAL[0], CROUCH_INTERVAL[1]);
           playAnim(id, "crouch", { loop: false });
         }
       }
 
-      // Horizontal mirror based on velocity
-      const vx = fb.body.velocity.x;
-      if (Math.abs(vx) > 0.15) {
-        const facing: 1 | -1 = vx < 0 ? -1 : 1;
-        if (facing !== state.facing) {
-          state.facing = facing;
-          const sprite = spriteRefs.current.get(id);
-          if (sprite) {
-            const baseScale = TIER_SPRITE_SCALE[fb.tier];
-            sprite.scale.x = baseScale * facing;
+      // Space: rotate ship to face velocity. Others: mirror sprite horizontally.
+      if (isSpace) {
+        const { x: vx, y: vy } = fb.body.velocity;
+        if (vx * vx + vy * vy > 0.04) {
+          const ship = shipRefs.current.get(id);
+          // Sprite faces up (−Y); atan2(vx, −vy) maps velocity → rotation correctly.
+          if (ship) ship.rotation = Math.atan2(vx, -vy);
+        }
+      } else {
+        const vx = fb.body.velocity.x;
+        if (Math.abs(vx) > 0.15) {
+          const facing: 1 | -1 = vx < 0 ? -1 : 1;
+          if (facing !== state.facing) {
+            state.facing = facing;
+            const s = spriteRefs.current.get(id);
+            if (s) s.scale.x = TIER_SPRITE_SCALE[fb.tier] * facing;
           }
         }
       }
     }
 
-    // Pulsing ripe glow
     const ripeScale = 1 + Math.sin(glowPhaseRef.current) * 0.08;
-    for (const g of ripeGlowRefs.current.values()) {
-      g.scale.set(ripeScale);
-    }
+    for (const g of ripeGlowRefs.current.values()) g.scale.set(ripeScale);
 
-    // GC behavior + facing maps for porings that no longer exist
     for (const id of [...behaviorRef.current.keys()]) {
       if (!bodiesRef.current.has(id)) behaviorRef.current.delete(id);
     }
   });
 
-  // Entrance pop-in for new porings + tier-up flash + one-shot kick on growth.
   useEffect(() => {
     for (const p of porings) {
       const c = containerRefs.current.get(p.id);
@@ -288,13 +308,15 @@ function Scene({
           .timeline()
           .to(c.scale, { x: 1.35, y: 1.35, duration: 0.18, ease: "power2.out" })
           .to(c.scale, { x: 1, y: 1, duration: 0.55, ease: "elastic.out(1, 0.45)" });
-        playAnim(p.id, "kick", {
-          loop: false,
-          onComplete: () => {
-            const state = behaviorRef.current.get(p.id);
-            playAnim(p.id, state?.action ?? "idle");
-          },
-        });
+        if (!isSpace) {
+          playAnim(p.id, "kick", {
+            loop: false,
+            onComplete: () => {
+              const state = behaviorRef.current.get(p.id);
+              playAnim(p.id, state?.action ?? "idle");
+            },
+          });
+        }
       }
       prevTiersRef.current.set(p.id, p.growth_tier);
     }
@@ -302,9 +324,8 @@ function Scene({
     for (const id of [...seenIdsRef.current]) {
       if (!alive.has(id)) seenIdsRef.current.delete(id);
     }
-  }, [porings, playAnim]);
+  }, [porings, playAnim, isSpace]);
 
-  // Lift / land animation when the user grabs or releases a poring.
   useEffect(() => {
     if (!liftSignal) return;
     let liftY = liftYRefs.current.get(liftSignal.id);
@@ -319,8 +340,6 @@ function Scene({
     }
   }, [liftSignal]);
 
-  // Caress: container pop + happy sprint (the "move" run cycle).
-  // Interrupts whatever the dino was doing — caress is user-initiated and takes priority.
   useEffect(() => {
     if (!caressSignal) return;
     const c = containerRefs.current.get(caressSignal.id);
@@ -347,8 +366,8 @@ function Scene({
     });
     state.action = "move";
     state.actionEndsAt = now + CARESS_RUN_DURATION;
-    playAnim(caressSignal.id, "move");
-  }, [caressSignal, playAnim, bodiesRef]);
+    if (!isSpace) playAnim(caressSignal.id, "move");
+  }, [caressSignal, playAnim, bodiesRef, isSpace]);
 
   return (
     <>
@@ -359,7 +378,7 @@ function Scene({
         const completed = p.status === "completed";
         const colors = poringColor(p.id, completed);
         const spriteScale = TIER_SPRITE_SCALE[tier];
-        const sheet = sheets[dinoVariantIndex(p.id)];
+        const sheet = activeSheets[p.id % activeSheets.length];
 
         return (
           <pixiContainer
@@ -373,15 +392,16 @@ function Scene({
             onPointerTap={() => onPoringClick(p.id)}
             alpha={completed ? 0.55 : 1}
           >
-            {/* Shadow stays at body position; sprite.y offset handles the lift. */}
-            <pixiGraphics
-              y={radius * 0.95 - 10}
-              alpha={0.35}
-              draw={(g) => {
-                g.clear();
-                g.ellipse(0, 0, radius * 0.5, radius * 0.2).fill(SHADOW_COLOR);
-              }}
-            />
+            {!isSpace && (
+              <pixiGraphics
+                y={radius * 0.95 - 10}
+                alpha={0.35}
+                draw={(g) => {
+                  g.clear();
+                  g.ellipse(0, 0, radius * 0.5, radius * 0.2).fill(SHADOW_COLOR);
+                }}
+              />
+            )}
             {tier === "ripe" && !completed && (
               <pixiGraphics
                 ref={(g) => {
@@ -395,14 +415,31 @@ function Scene({
                 }}
               />
             )}
-            {sheet && (
+
+            {/* Space world: static ship sprite that rotates to face velocity */}
+            {isSpace && shipTextures ? (
+              <pixiSprite
+                ref={(s: Sprite | null) => {
+                  if (s) {
+                    shipRefs.current.set(p.id, s);
+                    if (!liftYRefs.current.has(p.id)) liftYRefs.current.set(p.id, { y: 0 });
+                  } else {
+                    shipRefs.current.delete(p.id);
+                    liftYRefs.current.delete(p.id);
+                  }
+                }}
+                texture={shipTextures[p.id % 4]}
+                anchor={0.5}
+                scale={spriteScale * 0.25}
+                tint={completed ? 0x94a3b8 : 0xffffff}
+              />
+            ) : sheet ? (
+              /* Forest worlds: animated dino sprite */
               <pixiAnimatedSprite
                 ref={(s) => {
                   if (s) {
                     spriteRefs.current.set(p.id, s);
-                    if (!liftYRefs.current.has(p.id)) {
-                      liftYRefs.current.set(p.id, { y: 0 });
-                    }
+                    if (!liftYRefs.current.has(p.id)) liftYRefs.current.set(p.id, { y: 0 });
                     s.textures = sheet.textures.idle;
                     s.animationSpeed = ANIM_SPEED.idle;
                     s.loop = true;
@@ -420,7 +457,7 @@ function Scene({
                 scale={spriteScale}
                 tint={completed ? 0x94a3b8 : 0xffffff}
               />
-            )}
+            ) : null}
           </pixiContainer>
         );
       })}
@@ -444,11 +481,10 @@ export function FieldStage({
   const [fieldDims, setFieldDims] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
   const timeOfDay = useTimeOfDay();
   const sheets = useDinoSpritesheets();
+  const graveyardSheets = useGraveyardCreatures();
+  const shipTextures = useSpaceShipTextures();
   const decorTextures = useDecorationTextures(world);
 
-  // isDraggingRef is set by Matter's startdrag / enddrag events on the MouseConstraint.
-  // Matter only fires startdrag when the pointer actually MOVED while holding a body —
-  // a plain tap never triggers it — so this is the most semantic drag flag available.
   const isDraggingRef = useRef(false);
   const draggedBodyIdRef = useRef<number | null>(null);
   const [liftSignal, setLiftSignal] = useState<{ id: number; lifted: boolean; nonce: number } | null>(null);
@@ -491,11 +527,6 @@ export function FieldStage({
     });
     Matter.Composite.add(engine.world, mc);
 
-    // startdrag fires only when the pointer MOVED while holding a body.
-    // A plain tap never triggers it, so isDraggingRef stays false for clicks.
-    // Pixi's pointertap fires on the canvas (child) before pointerup bubbles to
-    // the wrapper where Matter listens — so when pointertap fires, the flag is
-    // already set correctly by startdrag.
     const onStart = (e: unknown): void => {
       isDraggingRef.current = true;
       const body = (e as { body?: Matter.Body }).body;
@@ -556,9 +587,12 @@ export function FieldStage({
           expandedId={expandedId}
           onPoringClick={guardedPoringClick}
           sheets={sheets}
+          graveyardSheets={graveyardSheets}
+          shipTextures={shipTextures}
           decorTextures={decorTextures}
           fieldDims={fieldDims}
           liftSignal={liftSignal}
+          world={world}
         />
       </Application>
     </div>

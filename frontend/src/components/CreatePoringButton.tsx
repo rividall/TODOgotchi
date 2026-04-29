@@ -51,7 +51,12 @@ export function CreatePoringButton({ onCreated }: Props): React.ReactElement {
   }
 
   return (
-    <form className="create-form" onSubmit={onSubmit}>
+    <>
+      <div
+        style={{ position: "fixed", inset: 0, zIndex: 3 }}
+        onClick={() => { reset(); setOpen(false); }}
+      />
+      <form className="create-form" onSubmit={onSubmit} style={{ zIndex: 4 }}>
       <input
         autoFocus
         type="text"
@@ -77,5 +82,6 @@ export function CreatePoringButton({ onCreated }: Props): React.ReactElement {
         </button>
       </div>
     </form>
+    </>
   );
 }

@@ -39,6 +39,7 @@ export function FieldPage(): React.ReactElement {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [actingId, setActingId] = useState<number | null>(null);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [burstIds, setBurstIds] = useState<Set<number>>(new Set());
   const [caressSignal, setCaressSignal] = useState<CaressSignal | null>(null);
   const [heartBursts, setHeartBursts] = useState<HeartBurst[]>([]);
@@ -147,7 +148,9 @@ export function FieldPage(): React.ReactElement {
     <main className="field-page">
       <header className="field-header">
         <h1>TODOgotchi</h1>
-        <div className="field-user">
+
+        {/* Desktop nav */}
+        <div className="field-user field-user--desktop">
           <select
             className="world-switcher"
             value={world}
@@ -182,6 +185,56 @@ export function FieldPage(): React.ReactElement {
             {isGuest ? "Exit" : "Sign out"}
           </button>
         </div>
+
+        {/* Mobile hamburger */}
+        <button
+          type="button"
+          className="hamburger-btn"
+          aria-label="Menu"
+          aria-expanded={menuOpen}
+          onClick={() => setMenuOpen((o) => !o)}
+        >
+          {menuOpen ? "✕" : "☰"}
+        </button>
+
+        {menuOpen && (
+          <nav className="hamburger-menu" onClick={() => setMenuOpen(false)}>
+            <span className="hamburger-label">{isGuest ? "Guest" : `Hi, ${user?.username}`}</span>
+            <select
+              className="world-switcher"
+              value={world}
+              onChange={(e) => setWorld(e.target.value as WorldId)}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {WORLD_IDS.map((w) => (
+                <option key={w} value={w}>{w}</option>
+              ))}
+            </select>
+            {user?.is_admin && (
+              <Link to="/admin" className="field-header-btn field-header-btn--blue hamburger-item">
+                Moderation
+              </Link>
+            )}
+            {isGuest && (
+              <div className="hamburger-btn-row">
+                <a
+                  href="https://github.com/rividall/TODOgotchi"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="field-header-btn field-header-btn--blue"
+                >
+                  Download &amp; run
+                </a>
+                <a href="/register" className="field-header-btn field-header-btn--green">
+                  Request Account
+                </a>
+              </div>
+            )}
+            <button type="button" className="hamburger-signout" onClick={logout}>
+              {isGuest ? "Exit" : "Sign out"}
+            </button>
+          </nav>
+        )}
       </header>
 
       {isGuest && (
@@ -213,7 +266,10 @@ export function FieldPage(): React.ReactElement {
               onBackgroundClick={handleBackgroundClick}
             />
             <Suspense fallback={null}>
-              <AmbientParticles />
+              <AmbientParticles
+                key={world === "Space" ? "static" : "moving"}
+                isStatic={world === "Space"}
+              />
             </Suspense>
             <PoringOverlay
               porings={alive}
