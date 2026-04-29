@@ -269,3 +269,25 @@ Adds a `world` dimension to labels — porings in a forest, cars in a city, spir
 - [x] Ground tiles (`tile_0019`, `tile_0039`, `tile_0129`) scattered across interior
 - [x] Purple background `#a386ce` (sampled from `base.png`)
 - [x] Creature y-offset `-20px` so shadow falls at feet, not behind body
+
+---
+
+## Asset Loading Reliability **DONE (2026-04-29)**
+
+Fixes intermittent "missing dinos" on landing + field. Root cause: `@pixi/react`'s reconciler cannot retroactively add `pixiAnimatedSprite` children to an already-mounted `Application` when their textures resolve from `null` to non-`null`. On localhost, StrictMode + cached disk assets masked the race; on production network latency exposed it.
+
+- [x] `preloadDinoSpritesheets()` invoked at module level in [main.tsx](../frontend/src/main.tsx) so all 4 dino variants start downloading on every page load (landing or field)
+- [x] `LandingDino` gates the `<Application>` on **all four** sheets being loaded (was only gating on vita — companions silently dropped if their fetches lost the race)
+- [x] `FieldStage` gates the `<Application>` on `creaturesReady` (every active-world sheet loaded) for the same reason
+- [x] `<Application>` is keyed on `world` so changing worlds cleanly remounts instead of trying to swap textures on existing sprites
+
+---
+
+## Landing World Picker **PARTIAL (2026-04-29)**
+
+Generalized landing scene infrastructure landed but visual tuning is incomplete; picker is hidden. See TODO `[UI] Landing world picker`.
+
+- [x] [LandingDino.tsx](../frontend/src/field/LandingDino.tsx) accepts a `world: WorldId` prop and dispatches to dino sheets / graveyard sheets / ship textures with per-world creature scales
+- [x] Non-Forest worlds reuse the shared `generateDecorations` (paired graves/trees, grid ground, scatter2)
+- [x] Asteroid spin loop kept in the landing scene for Space
+- [ ] Re-expose the `<select>` and tune big/small scales + companion offsets per world, then ship

@@ -1,23 +1,40 @@
 import { Application } from "@pixi/react";
 import { Sprite } from "pixi.js";
-import type { AnimatedSprite as PixiAnimatedSprite, Container as PixiContainer, Texture } from "pixi.js";
+import type { AnimatedSprite as PixiAnimatedSprite, Container as PixiContainer, Sprite as PixiSprite, Texture } from "pixi.js";
 import { useEffect, useRef, useState } from "react";
 
-import type { DecorationSpec, DecorationTextures } from "@/field/FieldDecorations";
-import { preloadDecorationTextures, useDecorationTextures } from "@/field/FieldDecorations";
+import type { DecorationSpec, DecorationTextures, WorldId } from "@/field/FieldDecorations";
+import { generateDecorations, preloadDecorationTextures, useDecorationTextures } from "@/field/FieldDecorations";
 import "@/field/pixiExtend";
 import type { DinoSpritesheet } from "@/field/useDinoSpritesheet";
 import { useDinoSpritesheets } from "@/field/useDinoSpritesheet";
+import { useGraveyardCreatures } from "@/field/useGraveyardCreatures";
+import { useSpaceShipTextures } from "@/field/useSpaceAssets";
 
-// Pre-warm the Forest decoration textures as soon as this module is imported.
+// Pre-warm the default Forest decoration textures.
 preloadDecorationTextures("Forest");
 
-const LANDING_SCALE = 16;
 const ANIM_SPEED = 0.06;
-const N_EDGE = 14;    // trees per edge
-const N_SCATTER = 28; // grass tiles in interior
+const N_EDGE = 14;    // forest: trees per edge
+const N_SCATTER = 28; // forest: grass tiles in interior
 
-// ─── Decoration helpers (landing-specific) ────────────────────────────────────
+// Per-world creature scales: { big, small }
+const CREATURE_SCALES: Record<WorldId, { big: number; small: number }> = {
+  Forest_ISO:   { big: 16, small: 6 },
+  Forest_retro: { big: 16, small: 6 },
+  Forest:       { big: 16, small: 6 },
+  Graveyard:    { big: 12, small: 5 },
+  Space:        { big: 1.6, small: 0.7 },
+};
+
+// 3 companions placed around the big creature's feet.
+const COMPANIONS: { dx: number; dy: number; flip: boolean }[] = [
+  { dx: -160, dy: 110, flip: false }, // left, faces right
+  { dx:  140, dy:  95, flip: true  }, // right, faces left
+  { dx:   50, dy: 140, flip: false }, // front-right
+];
+
+// ─── Decoration helpers ───────────────────────────────────────────────────────
 
 function seededRng(seed: number): () => number {
   let s = seed >>> 0;
@@ -41,7 +58,8 @@ function canPlace(x: number, y: number, placed: DecorationSpec[], minDist: numbe
   return true;
 }
 
-function generateLandingDecorations(w: number, h: number, textures: DecorationTextures): DecorationSpec[] {
+// Forest-only: simpler decorator that keeps a safe radius around the centered creature
+function generateForestLandingDecorations(w: number, h: number, textures: DecorationTextures): DecorationSpec[] {
   if (!w || !h) return [];
   const { scatter, trees, config } = textures;
   const rng = seededRng(0xc0ffee);
@@ -61,10 +79,9 @@ function generateLandingDecorations(w: number, h: number, textures: DecorationTe
     }
   };
 
-  // Grass scatter: fill interior, skip a safe radius around the centered dino
   if (scatter.length > 0) {
     const SCATTER_MARGIN = 100;
-    const SAFE_R = 190; // px around center — keeps dino visible
+    const SAFE_R = 190;
     const cx = w / 2;
     const cy = h / 2;
     for (let i = 0; i < N_SCATTER; i++) {
@@ -82,13 +99,11 @@ function generateLandingDecorations(w: number, h: number, textures: DecorationTe
     }
   }
 
-  // Edge trees
   if (trees.length > 0) {
     const MARGIN = -40;
     const DEPTH = 110;
     const tryTree = (genX: () => number, genY: () => number) =>
       tryPlace(genX, genY, pick(trees), treeScale);
-
     for (let i = 0; i < N_EDGE; i++) tryTree(() => MARGIN + rng() * DEPTH, () => rng() * h);
     for (let i = 0; i < N_EDGE; i++) tryTree(() => w - MARGIN - rng() * DEPTH, () => rng() * h);
     for (let i = 0; i < N_EDGE; i++) tryTree(() => rng() * w, () => MARGIN + rng() * DEPTH);
@@ -98,38 +113,37 @@ function generateLandingDecorations(w: number, h: number, textures: DecorationTe
   return specs;
 }
 
-const SMALL_SCALE = 6;
+// ─── Pixi scene ───────────────────────────────────────────────────────────────
 
-// Small companion dinos around vita's feet.
-// vita center = (w/2, h/2). At scale 16 the sprite is ~192px to the feet from center.
-// Companions sit lower on screen so they appear grounded at the same foot level.
-const COMPANIONS: { variantIndex: number; dx: number; dy: number; flip: boolean }[] = [
-  { variantIndex: 1, dx: -160, dy: 110, flip: false }, // doux — left, faces right
-  { variantIndex: 2, dx:  140, dy:  95, flip: true  }, // mort — right, faces left
-  { variantIndex: 3, dx:   50, dy: 140, flip: false }, // tard — front-right
-];
-
-// ─── Pixi scene (inside Application context) ──────────────────────────────────
-
-function LandingScene({
-  sheets,
-  decorTextures,
-  w,
-  h,
-}: {
-  sheets: (DinoSpritesheet | null)[];
+interface SceneProps {
+  world: WorldId;
+  dinoSheets: (DinoSpritesheet | null)[];
+  graveyardSheets: (DinoSpritesheet | null)[];
+  shipTextures: Texture[] | null;
   decorTextures: DecorationTextures | null;
   w: number;
   h: number;
-}): React.ReactElement {
-  const decorRef = useRef<PixiContainer | null>(null);
-  const vitaSheet = sheets[0];
+}
 
+function LandingScene({ world, dinoSheets, graveyardSheets, shipTextures, decorTextures, w, h }: SceneProps): React.ReactElement {
+  const decorRef = useRef<PixiContainer | null>(null);
+  const decorRotationsRef = useRef<number[]>([]);
+  const { big, small } = CREATURE_SCALES[world];
+  const isForest = world === "Forest" || world === "Forest_ISO" || world === "Forest_retro";
+  const isSpace = world === "Space";
+
+  // Re-render decorations when world / size / textures change.
   useEffect(() => {
     const c = decorRef.current;
     if (!c || !decorTextures || w === 0) return;
     c.removeChildren();
-    for (const s of generateLandingDecorations(w, h, decorTextures)) {
+    decorRotationsRef.current = [];
+    // Forest worlds use the centered-safe-radius generator; everything else
+    // uses the shared field generator (grids, paired trees, scatter2, etc).
+    const specs = isForest
+      ? generateForestLandingDecorations(w, h, decorTextures)
+      : generateDecorations(w, h, decorTextures);
+    for (const s of specs) {
       const sprite = new Sprite(s.texture);
       sprite.anchor.set(s.anchorX, s.anchorY);
       sprite.scale.set(s.scale);
@@ -137,71 +151,107 @@ function LandingScene({
       sprite.y = s.y;
       sprite.eventMode = "none";
       c.addChild(sprite);
+      decorRotationsRef.current.push(s.rotates ? 0.003 : 0);
     }
-  }, [decorTextures, w, h]);
+  }, [decorTextures, w, h, isForest, world]);
+
+  // Rotate spinning decorations (e.g. Space asteroids) per frame.
+  useEffect(() => {
+    if (!isSpace) return;
+    let raf = 0;
+    const tick = (): void => {
+      const c = decorRef.current;
+      if (c) {
+        const rates = decorRotationsRef.current;
+        for (let i = 0; i < c.children.length; i++) {
+          const r = rates[i];
+          if (r) (c.children[i] as Sprite).rotation += r;
+        }
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [isSpace]);
+
+  // Resolve the creatures to render in [big, small1, small2, small3] order.
+  // For forest: vita + 3 dino companions. For graveyard: first 4 graveyard
+  // sheets. For space: 4 ship textures.
+  const renderCreature = (
+    role: "big" | "small",
+    index: number,
+    x: number,
+    y: number,
+    flip = false,
+  ): React.ReactNode => {
+    const scale = role === "big" ? big : small;
+    const scaleX = flip ? -scale : scale;
+
+    if (isSpace) {
+      if (!shipTextures) return null;
+      const tex = shipTextures[index % shipTextures.length];
+      return (
+        <pixiSprite
+          key={`${world}-${role}-${index}`}
+          ref={(s: PixiSprite | null) => { if (s) { s.scale.x = scaleX; s.scale.y = scale; } }}
+          texture={tex}
+          anchor={0.5}
+          x={x}
+          y={y}
+        />
+      );
+    }
+
+    const sheets = world === "Graveyard" ? graveyardSheets : dinoSheets;
+    const sheet = sheets[index % sheets.length];
+    if (!sheet) return null;
+    return (
+      <pixiAnimatedSprite
+        key={`${world}-${role}-${index}`}
+        ref={(s: PixiAnimatedSprite | null) => {
+          if (!s) return;
+          s.textures = sheet.textures.idle;
+          s.animationSpeed = ANIM_SPEED;
+          s.loop = true;
+          s.scale.x = scaleX;
+          s.scale.y = scale;
+          s.gotoAndPlay(role === "big" ? 0 : Math.floor(Math.random() * sheet.textures.idle.length));
+        }}
+        textures={sheet.textures.idle}
+        animationSpeed={ANIM_SPEED}
+        loop
+        anchor={0.5}
+        x={x}
+        y={y}
+      />
+    );
+  };
 
   return (
     <>
       <pixiContainer ref={(c) => { decorRef.current = c; }} />
-
-      {/* Main vita dino — rendered first so companions appear in front */}
-      {vitaSheet && (
-        <pixiAnimatedSprite
-          ref={(s: PixiAnimatedSprite | null) => {
-            if (!s) return;
-            s.textures = vitaSheet.textures.idle;
-            s.animationSpeed = ANIM_SPEED;
-            s.loop = true;
-            s.gotoAndPlay(0);
-          }}
-          textures={vitaSheet.textures.idle}
-          animationSpeed={ANIM_SPEED}
-          loop
-          anchor={0.5}
-          x={w / 2}
-          y={h / 2}
-          scale={LANDING_SCALE}
-        />
+      {/* Big centered creature first so companions render in front */}
+      {renderCreature("big", 0, w / 2, h / 2)}
+      {COMPANIONS.map((c, i) =>
+        renderCreature("small", i + 1, w / 2 + c.dx, h / 2 + c.dy, c.flip),
       )}
-
-      {/* Companion dinos around vita's feet */}
-      {COMPANIONS.map(({ variantIndex, dx, dy, flip }) => {
-        const cSheet = sheets[variantIndex];
-        if (!cSheet) return null;
-        const scaleX = flip ? -SMALL_SCALE : SMALL_SCALE;
-        return (
-          <pixiAnimatedSprite
-            key={variantIndex}
-            ref={(s: PixiAnimatedSprite | null) => {
-              if (!s) return;
-              s.textures = cSheet.textures.idle;
-              s.animationSpeed = ANIM_SPEED;
-              s.loop = true;
-              s.scale.x = scaleX;
-              s.scale.y = SMALL_SCALE;
-              // Stagger start frames so all four don't blink in sync
-              s.gotoAndPlay(Math.floor(Math.random() * cSheet.textures.idle.length));
-            }}
-            textures={cSheet.textures.idle}
-            animationSpeed={ANIM_SPEED}
-            loop
-            anchor={0.5}
-            x={w / 2 + dx}
-            y={h / 2 + dy}
-          />
-        );
-      })}
     </>
   );
 }
 
 // ─── Public component ─────────────────────────────────────────────────────────
 
-export function LandingDino(): React.ReactElement {
+interface LandingDinoProps {
+  world?: WorldId;
+}
+
+export function LandingDino({ world = "Forest" }: LandingDinoProps): React.ReactElement {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [dims, setDims] = useState({ w: 0, h: 0 });
-  const sheets = useDinoSpritesheets();
-  const decorTextures = useDecorationTextures("Forest");
+  const dinoSheets = useDinoSpritesheets();
+  const graveyardSheets = useGraveyardCreatures();
+  const shipTextures = useSpaceShipTextures();
+  const decorTextures = useDecorationTextures(world);
 
   useEffect(() => {
     const el = wrapRef.current;
@@ -213,24 +263,36 @@ export function LandingDino(): React.ReactElement {
     return () => ro.disconnect();
   }, []);
 
-  // Gate the Application on ALL sheets (vita + 3 companions) being ready.
+  // Gate the Application on every creature for the active world being ready.
   // @pixi/react's reconciler cannot retroactively add sprites to an already-mounted
-  // scene — every sprite that should appear must be present at first render.
-  // Gating only on vita causes companions to be silently dropped when their sheets
-  // resolve after Application mount (race between 4 independent fetches).
-  const allSheetsReady = sheets.every((s) => s !== null);
+  // scene, so all four creatures must be present from the very first render.
+  const creaturesReady =
+    world === "Space"
+      ? shipTextures !== null && shipTextures.length >= 4
+      : world === "Graveyard"
+      ? graveyardSheets.slice(0, 4).every((s) => s !== null)
+      : dinoSheets.every((s) => s !== null);
 
   return (
     <div ref={wrapRef} className="landing-dino-wrap">
-      {dims.w > 0 && allSheetsReady && (
+      {dims.w > 0 && creaturesReady && (
         <Application
+          key={world}
           resizeTo={wrapRef}
           backgroundAlpha={0}
           antialias
           autoDensity
           resolution={window.devicePixelRatio || 1}
         >
-          <LandingScene sheets={sheets} decorTextures={decorTextures} w={dims.w} h={dims.h} />
+          <LandingScene
+            world={world}
+            dinoSheets={dinoSheets}
+            graveyardSheets={graveyardSheets}
+            shipTextures={shipTextures}
+            decorTextures={decorTextures}
+            w={dims.w}
+            h={dims.h}
+          />
         </Application>
       )}
     </div>

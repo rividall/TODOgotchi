@@ -11,7 +11,7 @@ export function LandingPage(): React.ReactElement {
 
   return (
     <main className="landing-page field-stage-world-Forest">
-      <LandingDino />
+      <LandingDino world="Forest" />
       <div className="landing-cta">
         <h1 className="landing-title">TODOgotchi</h1>
         <p className="landing-sub">Feed your tasks. Watch them grow.</p>
