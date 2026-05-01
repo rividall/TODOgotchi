@@ -9,7 +9,11 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.core.database import Base, get_db
+from app.core.rate_limit import limiter
 from app.main import app
+
+# Tests fire many requests against /auth/* — disable rate limiting in-process.
+limiter.enabled = False
 
 TEST_DATABASE_URL = "sqlite+aiosqlite:///./test.db"
 

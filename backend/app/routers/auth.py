@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.rate_limit import limiter
 from app.core.security import (
     create_access_token,
     create_refresh_token,
@@ -32,13 +33,23 @@ def _token_pair_for(user: User) -> TokenPair:
 
 
 @router.post("/register", response_model=TokenPair, status_code=status.HTTP_201_CREATED)
-async def register(payload: RegisterRequest, db: AsyncSession = Depends(get_db)) -> TokenPair:
+@limiter.limit("5/minute")
+async def register(
+    request: Request,
+    payload: RegisterRequest,
+    db: AsyncSession = Depends(get_db),
+) -> TokenPair:
     user = await register_user(db, payload)
     return _token_pair_for(user)
 
 
 @router.post("/login", response_model=TokenPair)
-async def login(payload: LoginRequest, db: AsyncSession = Depends(get_db)) -> TokenPair:
+@limiter.limit("5/minute")
+async def login(
+    request: Request,
+    payload: LoginRequest,
+    db: AsyncSession = Depends(get_db),
+) -> TokenPair:
     user = await authenticate_user(db, payload.email, payload.password)
     return _token_pair_for(user)
 

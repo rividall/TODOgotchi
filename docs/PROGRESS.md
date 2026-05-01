@@ -291,3 +291,12 @@ Generalized landing scene infrastructure landed but visual tuning is incomplete;
 - [x] Non-Forest worlds reuse the shared `generateDecorations` (paired graves/trees, grid ground, scatter2)
 - [x] Asteroid spin loop kept in the landing scene for Space
 - [ ] Re-expose the `<select>` and tune big/small scales + companion offsets per world, then ship
+
+---
+
+## Auth Rate Limiting **DONE (2026-05-01)**
+
+- [x] `slowapi` (in-memory) wired into [main.py](../backend/app/main.py) — limiter on `app.state`, `RateLimitExceeded` handler, `SlowAPIMiddleware` registered
+- [x] Custom `key_func` in [core/rate_limit.py](../backend/app/core/rate_limit.py) reads `CF-Connecting-IP` first, then `X-Forwarded-For`, then direct client IP — required because Cloudflare Tunnel hides the real client behind the egress IP
+- [x] `POST /api/v1/auth/login` and `POST /api/v1/auth/register` limited to **5/minute per client IP**; `/auth/refresh` left unlimited (already gated by valid refresh token)
+- [x] Tests disable the limiter via `limiter.enabled = False` in `conftest.py`

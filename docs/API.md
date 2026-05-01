@@ -59,10 +59,12 @@ TODOgotchi API is a RESTful API built with FastAPI.
 
 | Method | Endpoint | Description | Auth |
 |--------|----------|-------------|------|
-| `POST` | `/auth/register` | Create a new account | 🌐 Public |
-| `POST` | `/auth/login` | Login, get tokens | 🌐 Public |
+| `POST` | `/auth/register` | Create a new account | 🌐 Public · 5/min per IP |
+| `POST` | `/auth/login` | Login, get tokens | 🌐 Public · 5/min per IP |
 | `POST` | `/auth/refresh` | Refresh access token | 🌐 Public |
 | `GET`  | `/auth/me` | Get current user | Required |
+
+**Rate limiting:** `/auth/login` and `/auth/register` are limited to **5 requests per minute per client IP** (slowapi, in-memory). Exceeded requests return `429 Too Many Requests`. The real client IP is read from `CF-Connecting-IP` (Cloudflare Tunnel) with `X-Forwarded-For` as fallback.
 
 **Register:**
 ```bash
