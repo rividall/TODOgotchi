@@ -223,6 +223,15 @@ export function guestActOnPoring(id: number, actionType: ActionType): Poring {
   return snapshot(p);
 }
 
+export function guestCompletePoring(id: number): Poring {
+  const p = _porings.find((p) => p.id === id);
+  if (!p) throw new Error(`Guest poring ${id} not found`);
+  if (p.status !== "alive") throw new Error("Poring has already been completed");
+  p.status = "completed";
+  p.updated_at = new Date().toISOString();
+  return snapshot(p);
+}
+
 // ─── Checklist operations ─────────────────────────────────────────────────────
 
 export function guestAddChecklistItem(poringId: number, text: string): ChecklistItem {

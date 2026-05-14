@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { ApiError } from "@/api/client";
 import type { ChecklistItem } from "@/api/checklist";
 import type { Label } from "@/api/labels";
-import { deletePoring, getPoring, updatePoring } from "@/api/porings";
+import { completePoring, deletePoring, getPoring, updatePoring } from "@/api/porings";
 import type { Poring } from "@/api/porings";
 import { ChecklistSection } from "@/components/ChecklistSection";
 import { LabelPicker } from "@/components/LabelPicker";
@@ -16,6 +16,7 @@ interface Props {
   onDeleted: (id: number) => void;
   onLabelsChanged: () => void;
   onRequestAct: () => void;
+  onCompleted: (p: Poring) => void;
 }
 
 const TIER_LABEL: Record<Poring["growth_tier"], string> = {
@@ -54,6 +55,7 @@ export function TaskPanel({
   onDeleted,
   onLabelsChanged,
   onRequestAct,
+  onCompleted,
 }: Props): React.ReactElement {
   const [title, setTitle] = useState(poring.title);
   const [description, setDescription] = useState(poring.description ?? "");
@@ -83,6 +85,19 @@ export function TaskPanel({
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Save failed");
     } finally {
+      setSaving(false);
+    }
+  }
+
+  async function markDone(): Promise<void> {
+    if (!confirm(`Mark "${poring.title}" as done?`)) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const updated = await completePoring(poring.id);
+      onCompleted(updated);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not complete");
       setSaving(false);
     }
   }
@@ -197,9 +212,20 @@ export function TaskPanel({
           Delete
         </button>
         {!completed && (
-          <button type="button" onClick={save} disabled={!dirty || saving}>
-            {saving ? "Saving…" : "Save"}
-          </button>
+          <>
+            <button
+              type="button"
+              className="done-button"
+              onClick={markDone}
+              disabled={saving}
+              title="Mark this idea as done without waiting for it to ripen"
+            >
+              Done
+            </button>
+            <button type="button" onClick={save} disabled={!dirty || saving}>
+              {saving ? "Saving…" : "Save"}
+            </button>
+          </>
         )}
       </div>
     </aside>

@@ -522,7 +522,7 @@ body {
   gap: 14px;
   box-shadow: -8px 0 24px rgba(0, 0, 0, 0.06);
   overflow-y: auto;
-  z-index: 5;
+  z-index: 60; /* above onboarding backdrop (50) so the panel is highlighted */
   animation: panel-slide-in 0.2s ease;
 }
 
@@ -663,6 +663,19 @@ body {
 
 .task-panel-actions .ghost-button:hover:not(:disabled) {
   background: #fef2f2;
+}
+
+/* Done button: secondary action — completes the idea immediately without
+   waiting for it to ripen. Styled distinctly from primary Save so it doesn't
+   compete for visual weight. */
+.task-panel-actions .done-button {
+  background: transparent;
+  color: var(--primary-600);
+  border: 1px solid var(--primary-300);
+}
+
+.task-panel-actions .done-button:hover:not(:disabled) {
+  background: var(--primary-100);
 }
 
 /* ---------- Checklist ---------- */
@@ -1967,4 +1980,229 @@ body {
 
 .landing-login-btn:hover {
   background: white;
+}
+
+/* ─── Onboarding overlay ──────────────────────────────────────────────── */
+
+/* The root is a transparent pass-through; backdrop and card-layer each carry
+   their own z-index so the card can sit above the TaskPanel while the
+   backdrop stays below it (panel highlighted through the dim). */
+.onboarding-root {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  animation: onboarding-fade-in 180ms ease-out;
+}
+
+/* Layer 1: dim + blur. Masked when a spotlight is requested so the target
+   pokes through. Captures clicks so the rest of the field isn't interactive.
+   z-index < .task-panel (60) so the panel is highlighted through the dim. */
+.onboarding-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  background: rgba(15, 23, 42, 0.35);
+  backdrop-filter: blur(2px);
+  pointer-events: auto;
+}
+
+.onboarding-backdrop--spotlight {
+  --hole-x: 50%;
+  --hole-y: 50%;
+  --hole-r: 0px;
+  -webkit-mask-image: radial-gradient(
+    circle at var(--hole-x) var(--hole-y),
+    transparent 0,
+    transparent var(--hole-r),
+    black calc(var(--hole-r) + 24px)
+  );
+  mask-image: radial-gradient(
+    circle at var(--hole-x) var(--hole-y),
+    transparent 0,
+    transparent var(--hole-r),
+    black calc(var(--hole-r) + 24px)
+  );
+}
+
+/* Layer 2: the card, above the backdrop so the mask never touches it.
+   z-index > .task-panel (60) so the card always sits on top, including on
+   mobile where the panel goes full-screen. */
+.onboarding-card-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 70;
+  pointer-events: none; /* let the card re-enable below */
+}
+
+.onboarding-card-layer .onboarding-card {
+  pointer-events: auto;
+}
+
+@keyframes onboarding-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.onboarding-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 28px 32px 20px;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+  max-width: 320px;
+  text-align: center;
+}
+
+/* Center mode (default): flex-centered inside the layer. */
+.onboarding-card-layer--center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Anchored mode: card is absolutely positioned with JS each frame, hovering
+   just above a target point. Transform shifts the card up by its own height
+   so the "top" coordinate written by the rAF loop lands at the card's bottom. */
+.onboarding-card-layer--anchored .onboarding-card {
+  position: absolute;
+  transform: translateY(-100%);
+  margin-top: -10px; /* small gap between card bottom and the anchor */
+}
+
+.onboarding-card-layer--anchored .onboarding-card::after {
+  content: "";
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 9px solid transparent;
+  border-right: 9px solid transparent;
+  border-top: 9px solid white;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.1));
+}
+
+/* Left-of-panel placement: card pinned just to the left of the slide-in
+   TaskPanel (which is fixed right: 0, width 360px). Uses position: fixed so
+   coords are viewport-relative regardless of the onboarding root's parent. */
+.onboarding-card-layer--left-of-panel .onboarding-card {
+  position: fixed;
+  right: 424px; /* panel 360 + 24px gap + 40px extra */
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* Triangle pointing RIGHT (toward the panel): only the left border is
+   coloured, which creates a right-facing apex in the CSS-border trick. */
+.onboarding-card-layer--left-of-panel .onboarding-card::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: -9px;
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  border-top: 9px solid transparent;
+  border-bottom: 9px solid transparent;
+  border-left: 9px solid white;
+  filter: drop-shadow(2px 0 2px rgba(0, 0, 0, 0.1));
+}
+
+/* Below-header placement: card pinned just under the top navbar, arrow on
+   top pointing UP at the navbar. Card sits toward the right so it aligns
+   with the world switcher / Download / Request Account group. */
+.onboarding-card-layer--below-header .onboarding-card {
+  position: fixed;
+  top: 72px; /* clears the field-header */
+  right: 24px;
+  max-width: 360px;
+}
+
+.onboarding-card-layer--below-header .onboarding-card::after {
+  content: "";
+  position: absolute;
+  top: -9px;
+  right: 32px; /* arrow toward the right end, near the navbar items */
+  width: 0;
+  height: 0;
+  border-left: 9px solid transparent;
+  border-right: 9px solid transparent;
+  border-bottom: 9px solid white;
+  filter: drop-shadow(0 -2px 2px rgba(0, 0, 0, 0.1));
+}
+
+/* Mobile: the TaskPanel goes full-screen at <=768px, so the "left of panel"
+   placement no longer makes sense — center the card on top of the panel and
+   drop the side arrow. */
+@media (max-width: 768px) {
+  .onboarding-card-layer--left-of-panel .onboarding-card {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    right: auto;
+    transform: translate(-50%, -50%);
+    max-width: calc(100vw - 32px);
+  }
+
+  .onboarding-card-layer--left-of-panel .onboarding-card::after {
+    display: none;
+  }
+}
+
+.onboarding-message {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--gray-700);
+}
+
+.onboarding-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.onboarding-body {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 400;
+  color: var(--gray-600);
+  line-height: 1.45;
+}
+
+.onboarding-next {
+  padding: 10px 28px;
+  background: var(--primary-500);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.onboarding-next:hover {
+  background: var(--primary-600);
+}
+
+.onboarding-skip {
+  background: transparent;
+  border: none;
+  padding: 4px 8px;
+  font-family: inherit;
+  font-size: 0.8rem;
+  color: var(--gray-600);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.onboarding-skip:hover {
+  color: var(--gray-700);
 }

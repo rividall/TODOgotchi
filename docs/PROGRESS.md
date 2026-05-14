@@ -109,6 +109,7 @@ When a poring reaches Ripe tier (60+ XP), it pulses and glows. The user can then
 - [x] `CompletedDrawer` — collapsible bottom-left panel listing completed porings in greyscale, click to reopen read-only TaskPanel
 - [x] TaskPanel shows an "Act on this poring" CTA when the poring is ripe + alive; disables inputs on completed porings
 - [x] API client: `actOnPoring(id, actionType)`
+- [x] `POST /porings/{id}/complete` — "Done" shortcut that bypasses the ripe gate; sets `status = completed` with `action_type = null`. Surfaced as a secondary button in TaskPanel for quick TODOs that don't need to grow. Reuses the same star-burst + completed-drawer flow as Act.
 
 ---
 

@@ -71,9 +71,18 @@ export function useFieldEngine(porings: Poring[]): FieldEngineHandle {
       const current = existing.get(p.id);
       if (!current) {
         const radius = TIER_RADIUS[p.growth_tier];
+        // The onboarding tutorial highlights this poring, so spawn it at the
+        // center of the field; the overlay anchored above it stays on-screen.
+        const isOnboardingTarget = p.title.trim().toLowerCase() === "read me!";
+        const spawnX = isOnboardingTarget
+          ? boundsRef.current.w / 2
+          : rand(radius * 2, Math.max(boundsRef.current.w - radius * 2, radius * 3));
+        const spawnY = isOnboardingTarget
+          ? boundsRef.current.h / 2
+          : rand(radius * 2, Math.max(boundsRef.current.h - radius * 2, radius * 3));
         const body = Matter.Bodies.circle(
-          rand(radius * 2, Math.max(boundsRef.current.w - radius * 2, radius * 3)),
-          rand(radius * 2, Math.max(boundsRef.current.h - radius * 2, radius * 3)),
+          spawnX,
+          spawnY,
           radius,
           {
             restitution: 0.85,

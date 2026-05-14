@@ -191,11 +191,12 @@ Label `color` must be a 7-character hex string matching `#RRGGBB` (422 otherwise
 
 ---
 
-## Actions (`/api/v1/porings/{id}/act`)
+## Actions (`/api/v1/porings/{id}/act` and `/complete`)
 
 | Method | Endpoint | Description | Auth |
 |--------|----------|-------------|------|
 | `POST` | `/porings/{id}/act` | Act on a ripe poring (complete it) | Required |
+| `POST` | `/porings/{id}/complete` | Mark a poring done early (no XP requirement, no action_type) | Required |
 
 **Guards:**
 - `400` with `"Poring must be ripe to act — needs 60 XP, has <n>"` if `xp < 60`
@@ -213,6 +214,16 @@ Authorization: Bearer <token>
 
 # action_type options: "shipped", "booked", "bought", "done", "abandoned"
 # Response 200: Poring object with status="completed", action_type="shipped"
+```
+
+**Complete early (skip ripening):**
+```bash
+POST /api/v1/porings/1/complete
+Authorization: Bearer <token>
+{}
+
+# Response 200: Poring object with status="completed", action_type=null
+# Guards: 400 if already completed; 403 if not in your workspace.
 ```
 
 ---

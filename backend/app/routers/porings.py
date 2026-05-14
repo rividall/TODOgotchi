@@ -165,3 +165,30 @@ async def act_on_poring(
 
     result = await db.execute(_poring_query().where(Poring.id == poring_id))
     return _to_out(result.scalar_one())
+
+
+@router.post("/{poring_id}/complete", response_model=PoringOut)
+async def complete_poring(
+    poring_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> PoringOut:
+    """Mark a poring as done without the ripe-XP requirement of /act.
+
+    For "quick TODOs" that the user wants to close out before the idea has
+    grown. Sets status to completed with no action_type (distinguishing it
+    from a ripe Act completion in the event log).
+    """
+    poring = await _get_workspace_poring(db, poring_id, current_user)
+
+    if poring.status != PoringStatus.alive:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Poring has already been acted on",
+        )
+
+    poring.status = PoringStatus.completed
+    await db.commit()
+
+    result = await db.execute(_poring_query().where(Poring.id == poring_id))
+    return _to_out(result.scalar_one())

@@ -10,6 +10,7 @@ import { ActModal } from "@/components/ActModal";
 import { CompletedDrawer } from "@/components/CompletedDrawer";
 import { CreatePoringButton } from "@/components/CreatePoringButton";
 import { FeedbackModal } from "@/components/FeedbackModal";
+import { OnboardingOverlay } from "@/components/OnboardingOverlay";
 import { TaskPanel } from "@/components/TaskPanel";
 import { FieldStage } from "@/field/FieldStage";
 import type { CaressSignal } from "@/field/FieldStage";
@@ -19,7 +20,6 @@ import { HeartParticles } from "@/field/HeartParticles";
 import type { HeartBurst } from "@/field/HeartParticles";
 import { PoringOverlay } from "@/field/PoringOverlay";
 import { useFieldEngine } from "@/field/useFieldEngine";
-import type { FieldBody } from "@/field/useFieldEngine";
 import { useAuth } from "@/auth/AuthContext";
 
 // tsparticles is ~80 KB gzipped — keep it out of the initial bundle.
@@ -40,7 +40,14 @@ export function FieldPage(): React.ReactElement {
   const [actingId, setActingId] = useState<number | null>(null);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [burstIds, setBurstIds] = useState<Set<number>>(new Set());
+  // Onboarding steps: 0 = welcome, 1 = "Read me!" highlight, 2+ = done.
+  const [onboardingStep, setOnboardingStep] = useState(0);
+  // Completion bursts carry captured coords because the poring's physics body
+  // is removed the moment its status flips to "completed" (useFieldEngine only
+  // tracks alive porings), so we can't look up its position later.
+  const [completionBursts, setCompletionBursts] = useState<
+    { key: string; x: number; y: number }[]
+  >([]);
   const [caressSignal, setCaressSignal] = useState<CaressSignal | null>(null);
   const [heartBursts, setHeartBursts] = useState<HeartBurst[]>([]);
 
@@ -125,24 +132,24 @@ export function FieldPage(): React.ReactElement {
   );
 
   const handleActed = useCallback((updated: Poring) => {
-    setBurstIds((prev) => {
-      const next = new Set(prev);
-      next.add(updated.id);
-      return next;
-    });
-    setTimeout(() => {
-      setBurstIds((prev) => {
-        const next = new Set(prev);
-        next.delete(updated.id);
-        return next;
-      });
-    }, 1400);
+    // Capture position NOW — the body is removed from the engine on the next
+    // render once this poring leaves the `alive` array.
+    const fb = bodiesRef.current.get(updated.id);
+    if (fb) {
+      const key = `${updated.id}-${performance.now()}`;
+      const x = fb.body.position.x;
+      const y = fb.body.position.y;
+      setCompletionBursts((prev) => [...prev.slice(-10), { key, x, y }]);
+      setTimeout(() => {
+        setCompletionBursts((prev) => prev.filter((b) => b.key !== key));
+      }, 1400);
+    }
 
     setPorings((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
     setActingId(null);
     setEditingId(null);
     setExpandedId(null);
-  }, []);
+  }, [bodiesRef]);
 
   return (
     <main className="field-page">
@@ -286,6 +293,146 @@ export function FieldPage(): React.ReactElement {
                 <p>The field is empty. Plant a poring to get started.</p>
               </div>
             )}
+            {onboardingStep === 0 && (
+              <OnboardingOverlay
+                message={
+                  <>
+                    <h2 className="onboarding-title">Welcome to todoGotchi!</h2>
+                    <p className="onboarding-body">
+                      This is a TODO app to keep track of ideas. You write them
+                      down, and then take care of them over time.
+                    </p>
+                  </>
+                }
+                onNext={() => setOnboardingStep(1)}
+                onSkip={() => setOnboardingStep(99)}
+              />
+            )}
+            {(onboardingStep === 1 || onboardingStep === 2) && (() => {
+              const readMe = alive.find(
+                (p) => p.title.trim().toLowerCase() === "read me!",
+              );
+              if (!readMe) {
+                setOnboardingStep(99);
+                return null;
+              }
+              if (onboardingStep === 1) {
+                return (
+                  <OnboardingOverlay
+                    message={
+                      <p className="onboarding-body">
+                        Each Dino is an idea. You can create them and make them
+                        happy by interacting with them.
+                      </p>
+                    }
+                    getAnchor={() => {
+                      const fb = bodiesRef.current.get(readMe.id);
+                      if (!fb) return null;
+                      return {
+                        x: fb.body.position.x,
+                        y: fb.body.position.y - fb.radius - 40,
+                      };
+                    }}
+                    getSpotlight={() => {
+                      const fb = bodiesRef.current.get(readMe.id);
+                      if (!fb) return null;
+                      return {
+                        x: fb.body.position.x,
+                        y: fb.body.position.y,
+                        r: fb.radius * 1.8,
+                      };
+                    }}
+                    onNext={() => {
+                      setExpandedId(readMe.id);
+                      setOnboardingStep(2);
+                    }}
+                    onSkip={() => setOnboardingStep(99)}
+                  />
+                );
+              }
+              // Step 2: poring tab is expanded — point at it.
+              return (
+                <OnboardingOverlay
+                  message={
+                    <p className="onboarding-body">
+                      This menu lets you interact with your idea, caress it
+                      (it&rsquo;s cute) and open the ideation menu.
+                    </p>
+                  }
+                  getAnchor={() => {
+                    const fb = bodiesRef.current.get(readMe.id);
+                    if (!fb) return null;
+                    // The expanded tab is taller — lift the card well above it.
+                    return {
+                      x: fb.body.position.x,
+                      y: fb.body.position.y - fb.radius - 80,
+                    };
+                  }}
+                  getSpotlight={() => {
+                    const fb = bodiesRef.current.get(readMe.id);
+                    if (!fb) return null;
+                    // Encompass both the dino body and the floating tab above it.
+                    return {
+                      x: fb.body.position.x,
+                      y: fb.body.position.y - 40,
+                      r: fb.radius * 2.4,
+                    };
+                  }}
+                  onNext={() => {
+                    setExpandedId(null);
+                    setEditingId(readMe.id);
+                    setOnboardingStep(3);
+                  }}
+                  onSkip={() => {
+                    setExpandedId(null);
+                    setOnboardingStep(99);
+                  }}
+                />
+              );
+            })()}
+            {onboardingStep === 3 && (
+              <OnboardingOverlay
+                placement="left-of-panel"
+                message={
+                  <>
+                    <p className="onboarding-body">
+                      This is the idea menu. Here, you can give it content; name,
+                      description, tags, and checklist items (for complex TODOs).
+                    </p>
+                    <p className="onboarding-body">
+                      Interacting with the idea in this way makes it earn EXP,
+                      and grow in size. Eventually the idea is &ldquo;ripe&rdquo;
+                      and prompts you to take action on it! Once done, the idea
+                      will leave the field.
+                    </p>
+                  </>
+                }
+                onNext={() => {
+                  setEditingId(null);
+                  setOnboardingStep(4);
+                }}
+                onSkip={() => {
+                  setEditingId(null);
+                  setOnboardingStep(99);
+                }}
+              />
+            )}
+            {onboardingStep === 4 && (
+              <OnboardingOverlay
+                placement="below-header"
+                nextLabel="Done"
+                message={
+                  <p className="onboarding-body">
+                    You can change between environments here, and also download
+                    the repo from my GitHub in case you want to tinker with it.
+                    If you&rsquo;d like, I can make you an account on my hardware,
+                    although I can&rsquo;t promise total uptime!
+                  </p>
+                }
+                onNext={() => setOnboardingStep(99)}
+                onSkip={() => setOnboardingStep(99)}
+              />
+            )}
           </>
         )}
         <CompletedDrawer porings={completed} onSelect={(id) => setEditingId(id)} />
@@ -320,6 +467,7 @@ export function FieldPage(): React.ReactElement {
           }}
           onLabelsChanged={() => void refreshLabels()}
           onRequestAct={() => setActingId(editingPoring.id)}
+          onCompleted={handleActed}
         />
       )}
 
@@ -331,63 +479,48 @@ export function FieldPage(): React.ReactElement {
         />
       )}
 
-      {burstIds.size > 0 && <BurstOverlay ids={burstIds} porings={porings} bodiesRef={bodiesRef} />}
+      {completionBursts.length > 0 && <BurstOverlay bursts={completionBursts} />}
 
       {feedbackOpen && <FeedbackModal onClose={() => setFeedbackOpen(false)} />}
     </main>
   );
 }
 
-// Positions confetti-like bursts over whichever body is popping.
+// Positions confetti-like bursts at captured coords. The poring's physics
+// body is gone by the time this renders (status flipped to completed), so we
+// rely on positions captured at acted-time in FieldPage.handleActed.
 interface BurstProps {
-  ids: Set<number>;
-  porings: Poring[];
-  bodiesRef: React.RefObject<Map<number, FieldBody>>;
+  bursts: { key: string; x: number; y: number }[];
 }
 
-function BurstOverlay({ ids, bodiesRef }: BurstProps): React.ReactElement {
-  const [, force] = useState(0);
-  useEffect(() => {
-    let raf = 0;
-    const tick = (): void => {
-      force((n) => n + 1);
-      raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, []);
-
+function BurstOverlay({ bursts }: BurstProps): React.ReactElement {
   return (
     <div className="burst-layer" aria-hidden="true">
-      {[...ids].map((id) => {
-        const fb = bodiesRef.current.get(id);
-        if (!fb) return null;
-        return (
-          <div
-            key={id}
-            className="completion-burst"
-            style={{ transform: `translate3d(${fb.body.position.x}px, ${fb.body.position.y}px, 0)` }}
-          >
-            <div className="burst-core" />
-            {Array.from({ length: 12 }, (_, i) => {
-              const angle = (i / 12) * Math.PI * 2;
-              return (
-                <span
-                  key={i}
-                  className="burst-star"
-                  style={{
-                    ["--tx" as string]: `${Math.cos(angle) * 110}px`,
-                    ["--ty" as string]: `${Math.sin(angle) * 110}px`,
-                    animationDelay: `${(i % 4) * 30}ms`,
-                  }}
-                >
-                  ★
-                </span>
-              );
-            })}
-          </div>
-        );
-      })}
+      {bursts.map(({ key, x, y }) => (
+        <div
+          key={key}
+          className="completion-burst"
+          style={{ transform: `translate3d(${x}px, ${y}px, 0)` }}
+        >
+          <div className="burst-core" />
+          {Array.from({ length: 12 }, (_, i) => {
+            const angle = (i / 12) * Math.PI * 2;
+            return (
+              <span
+                key={i}
+                className="burst-star"
+                style={{
+                  ["--tx" as string]: `${Math.cos(angle) * 110}px`,
+                  ["--ty" as string]: `${Math.sin(angle) * 110}px`,
+                  animationDelay: `${(i % 4) * 30}ms`,
+                }}
+              >
+                ★
+              </span>
+            );
+          })}
+        </div>
+      ))}
     </div>
   );
 }

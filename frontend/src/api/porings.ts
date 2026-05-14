@@ -3,6 +3,7 @@ import type { ChecklistItem } from "@/api/checklist";
 import type { Label } from "@/api/labels";
 import {
   guestActOnPoring,
+  guestCompletePoring,
   guestCreatePoring,
   guestDeletePoring,
   guestGetPoring,
@@ -67,4 +68,9 @@ export function deletePoring(id: number): Promise<void> {
 export function actOnPoring(id: number, actionType: ActionType): Promise<Poring> {
   if (isGuestMode()) return Promise.resolve(guestActOnPoring(id, actionType));
   return apiPost<Poring>(`/porings/${id}/act`, { action_type: actionType });
+}
+
+export function completePoring(id: number): Promise<Poring> {
+  if (isGuestMode()) return Promise.resolve(guestCompletePoring(id));
+  return apiPost<Poring>(`/porings/${id}/complete`, {});
 }
