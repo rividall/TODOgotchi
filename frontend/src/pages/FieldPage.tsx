@@ -40,8 +40,27 @@ export function FieldPage(): React.ReactElement {
   const [actingId, setActingId] = useState<number | null>(null);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  // Onboarding steps: 0 = welcome, 1 = "Read me!" highlight, 2+ = done.
-  const [onboardingStep, setOnboardingStep] = useState(0);
+  // Onboarding steps: 0 = welcome, 1..4 = guided, 99 = dismissed / never run.
+  // For logged-in users we persist a per-user "seen" flag in localStorage so it
+  // only runs once. Guests get the onboarding every session (fresh demo each time).
+  const [onboardingStep, setOnboardingStep] = useState(99);
+
+  useEffect(() => {
+    if (isGuest) {
+      setOnboardingStep(0);
+      return;
+    }
+    if (!user) return;
+    const seen = localStorage.getItem(`todogotchi:onboarded:${user.id}`);
+    if (!seen) setOnboardingStep(0);
+  }, [user, isGuest]);
+
+  const dismissOnboarding = useCallback(() => {
+    if (user && !isGuest) {
+      localStorage.setItem(`todogotchi:onboarded:${user.id}`, "1");
+    }
+    setOnboardingStep(99);
+  }, [user, isGuest]);
   // Completion bursts carry captured coords because the poring's physics body
   // is removed the moment its status flips to "completed" (useFieldEngine only
   // tracks alive porings), so we can't look up its position later.
@@ -305,7 +324,7 @@ export function FieldPage(): React.ReactElement {
                   </>
                 }
                 onNext={() => setOnboardingStep(1)}
-                onSkip={() => setOnboardingStep(99)}
+                onSkip={dismissOnboarding}
               />
             )}
             {(onboardingStep === 1 || onboardingStep === 2) && (() => {
@@ -313,7 +332,7 @@ export function FieldPage(): React.ReactElement {
                 (p) => p.title.trim().toLowerCase() === "read me!",
               );
               if (!readMe) {
-                setOnboardingStep(99);
+                dismissOnboarding();
                 return null;
               }
               if (onboardingStep === 1) {
@@ -346,7 +365,7 @@ export function FieldPage(): React.ReactElement {
                       setExpandedId(readMe.id);
                       setOnboardingStep(2);
                     }}
-                    onSkip={() => setOnboardingStep(99)}
+                    onSkip={dismissOnboarding}
                   />
                 );
               }
@@ -385,7 +404,7 @@ export function FieldPage(): React.ReactElement {
                   }}
                   onSkip={() => {
                     setExpandedId(null);
-                    setOnboardingStep(99);
+                    dismissOnboarding();
                   }}
                 />
               );
@@ -413,7 +432,7 @@ export function FieldPage(): React.ReactElement {
                 }}
                 onSkip={() => {
                   setEditingId(null);
-                  setOnboardingStep(99);
+                  dismissOnboarding();
                 }}
               />
             )}
@@ -429,8 +448,8 @@ export function FieldPage(): React.ReactElement {
                     although I can&rsquo;t promise total uptime!
                   </p>
                 }
-                onNext={() => setOnboardingStep(99)}
-                onSkip={() => setOnboardingStep(99)}
+                onNext={dismissOnboarding}
+                onSkip={dismissOnboarding}
               />
             )}
           </>

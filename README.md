@@ -75,7 +75,8 @@ todogotchi/
 │   │   ├── api/            # client.ts + auth/porings/labels/checklist/feedback APIs
 │   │   ├── auth/           # AuthContext (user, isGuest, enterGuestMode)
 │   │   ├── components/     # TaskPanel, ActModal, CompletedDrawer, CreatePoringButton,
-│   │   │                   #   ChecklistSection, LabelPicker, FeedbackModal
+│   │   │                   #   ChecklistSection, LabelPicker, FeedbackModal,
+│   │   │                   #   OnboardingOverlay
 │   │   ├── field/          # PixiJS engine: FieldStage, PoringOverlay, PoringTab, useFieldEngine,
 │   │   │                   #   AmbientParticles, FieldDecorations (multi-world), LandingDino,
 │   │   │                   #   useDinoSpritesheets (4 variants), useSpaceAssets, useGraveyardCreatures,
@@ -112,7 +113,8 @@ todogotchi/
 - **Asset loading**: `@pixi/react`'s reconciler cannot retroactively add `pixiAnimatedSprite` children to an already-mounted `<Application>` once their textures resolve from `null` to non-`null` — the late-arriving sprites are silently dropped. To work around this, dino sheet downloads are kicked off at module level in [main.tsx](frontend/src/main.tsx) via `preloadDinoSpritesheets()`, and both `LandingDino` and `FieldStage` gate `<Application>` mount on every active-world creature being loaded. The `<Application>` is keyed on `world` so switching worlds remounts cleanly.
 - **Top margin**: `FIELD_TOP_MARGIN = 48` (exported from `useFieldEngine`) pushes the top physics wall 48 px below the canvas edge so dinos and their floating tabs never disappear off the top.
 - **Click flow**: Click a poring → its tab expands in place (Edit / Act / Delete buttons). Click "Edit" → the `TaskPanel` sidebar slides in. Click "Act" on a ripe poring (or click a ripe poring directly) → `ActModal` opens. Background click collapses any expanded tab.
-- **UI motion**: GSAP drives the moments that need juice — tier-up flash on a Pixi container when a poring crosses a growth threshold (scale pop + elastic return), CTA glow in the TaskPanel, modal entrances.
+- **UI motion**: GSAP drives the moments that need juice — tier-up flash on a Pixi container when a poring crosses a growth threshold (scale pop + elastic return), CTA glow in the TaskPanel, modal entrances. **Completion bursts** (12-star confetti on Act/Done) capture the poring's `{x, y}` synchronously in `handleActed` *before* state updates, because `useFieldEngine` removes the physics body the moment the poring's status flips to `completed` — a deferred body lookup would return undefined.
+- **Onboarding**: [`OnboardingOverlay`](frontend/src/components/OnboardingOverlay.tsx) is a single-step component (`message`, `placement`, `getAnchor`/`getSpotlight` callbacks, `nextLabel`, `onNext`, `onSkip`). The step machine lives in `FieldPage` as a plain `onboardingStep` integer; each branch decides what to set on the page (e.g. expanding a tab, opening the TaskPanel) before advancing. Two-layer DOM: backdrop (z 50, dim + blur + optional mask hole) below `.task-panel` (z 60); card-layer (z 70) above it so the card sits on top of the full-screen panel on mobile.
 - **Frontend pattern**: Feature-grouped under `src/components/`, `src/field/`, `src/pages/`. Auth context wraps the app and provides `user`, `token`, `login`, `logout`. See [docs/research/field-rendering-stack-analysis.md](docs/research/field-rendering-stack-analysis.md) for the rendering architecture rationale.
 - **Auth flow**: Login returns `access_token` (30 min) + `refresh_token` (7 days). Client stores both in memory (not localStorage). Axios interceptor auto-refreshes on 401.
 - **Database**: PostgreSQL 16 via `postgres:16-alpine` Docker container. Internal only — no host port exposed in production.
@@ -169,6 +171,9 @@ See [docs/PROGRESS.md](docs/PROGRESS.md) for the full implementation checklist.
 - ✅ **Space world done** — ships rotate to face velocity, asteroids spin, star-grid background
 - ✅ **Graveyard world done** — 5 character variants, paired trees, graves, ground tiles
 - ✅ **Asset loading reliability** — module-level `preloadDinoSpritesheets()` + `<Application>` mount gated on all active-world creature sheets being ready (works around `@pixi/react` reconciler limitation that silently drops sprites when their textures resolve after mount)
+- ✅ **Auth rate limiting** — `slowapi` (5/min per IP) on `/auth/login` and `/auth/register`; Cloudflare-aware `key_func` reads `CF-Connecting-IP` first so the tunnel egress IP isn't the bucket
+- ✅ **Done shortcut** — `POST /porings/{id}/complete` + TaskPanel "Done" button; closes a TODO immediately without waiting for ripe XP, reuses the same burst + completed-drawer flow as Act
+- ✅ **Onboarding flow** — 4-step guided overlay (welcome → highlight Read me dino → expanded tab → TaskPanel → top navbar); spotlight masks the dim/blur backdrop, card layer above the TaskPanel for mobile, "Done" button on the final step
 - ✅ **Deployed** — running at `todogotchi.buenalynch.com` via Cloudflare Tunnel
 
 ## Documentation

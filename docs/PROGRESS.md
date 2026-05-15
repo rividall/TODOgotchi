@@ -301,3 +301,42 @@ Generalized landing scene infrastructure landed but visual tuning is incomplete;
 - [x] Custom `key_func` in [core/rate_limit.py](../backend/app/core/rate_limit.py) reads `CF-Connecting-IP` first, then `X-Forwarded-For`, then direct client IP — required because Cloudflare Tunnel hides the real client behind the egress IP
 - [x] `POST /api/v1/auth/login` and `POST /api/v1/auth/register` limited to **5/minute per client IP**; `/auth/refresh` left unlimited (already gated by valid refresh token)
 - [x] Tests disable the limiter via `limiter.enabled = False` in `conftest.py`
+
+---
+
+## Onboarding Flow **DONE (2026-05-14)**
+
+Guided first-run tour for new users on the field page. Each step is a dismissable card with **Next** + **Skip** buttons; the final step's primary button reads **Done**.
+
+- [x] [`OnboardingOverlay`](../frontend/src/components/OnboardingOverlay.tsx) — reusable single-step component. Props: `message: ReactNode`, `placement`, optional `getAnchor`/`getSpotlight` callbacks (rAF-updated so they can track moving targets), `nextLabel`, `onNext`, `onSkip`
+- [x] Two-layer DOM: backdrop (dim + blur, z 50, captures clicks, mask-image punches a feathered circular hole when a spotlight is requested) and card-layer (z 70, above TaskPanel z 60 so the card sits on top of the panel on mobile where the panel goes full-screen)
+- [x] Four placements: `center`, `anchored` (above a moving point with downward arrow), `left-of-panel` (fixed right offset, right-pointing arrow, centers itself on screen at ≤768px), `below-header` (top-right under the navbar, upward arrow near the world switcher group)
+- [x] Step machine lives in [`FieldPage`](../frontend/src/pages/FieldPage.tsx) (`onboardingStep` state, advances via callbacks):
+  - **0** centered welcome
+  - **1** anchored above the "Read me!" dino with spotlight
+  - **2** same dino, tab auto-expands (sets `expandedId`), spotlight enlarged to cover dino + tab
+  - **3** TaskPanel auto-opens (sets `editingId`), card pinned left of panel (centered on top of panel on mobile)
+  - **4** card under the navbar with up-arrow; Next label = "Done"
+- [x] "Read me!" poring spawn override in [useFieldEngine](../frontend/src/field/useFieldEngine.ts) so the onboarding target lands at field center on first appearance instead of a random edge
+- [x] **Run-once for logged-in users**: dismissal (Done or Skip on any step) writes `localStorage["todogotchi:onboarded:<userId>"] = "1"`, keyed per-user so different accounts on the same browser each get their own walkthrough. Guests get the onboarding every session.
+
+---
+
+## Done Shortcut **DONE (2026-05-14)**
+
+Closes a TODO before it has ripened. For "just-write-it-down" tasks that don't need the full maturation arc.
+
+- [x] `POST /api/v1/porings/{id}/complete` in [porings router](../backend/app/routers/porings.py) — same workspace/ownership guard as `/act`, no ripe-XP check, sets `status = completed` with `action_type = null`
+- [x] `completePoring(id)` API client + `guestCompletePoring` in guest store mirror the same semantics (rejects if already completed)
+- [x] **Done** secondary button in [TaskPanel](../frontend/src/components/TaskPanel.tsx) (between Delete and Save), styled as outlined primary green so it doesn't compete with Save; native `confirm()` to avoid accidental dismissal
+- [x] Reuses `handleActed` in FieldPage — same star-burst → CompletedDrawer flow as a normal Act completion
+
+---
+
+## Completion Burst Fix **DONE (2026-05-14)**
+
+The 12-star confetti burst on Act/Done was never visible. Root cause: `BurstOverlay` read positions from `bodiesRef` at render time, but the poring's physics body was already removed by [useFieldEngine](../frontend/src/field/useFieldEngine.ts) the moment its status flipped to `completed`.
+
+- [x] `handleActed` now captures `{x, y}` synchronously from `bodiesRef` *before* updating state, stores it in `completionBursts: { key, x, y }[]` (same pattern `heartBursts` uses for caress)
+- [x] `BurstOverlay` renders from static captured coords — no body lookup at render time
+- [x] Burst expires after 1400ms via `setTimeout`
