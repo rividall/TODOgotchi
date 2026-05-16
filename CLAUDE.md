@@ -12,18 +12,6 @@ Read these docs in order before writing code:
 
 For feature-specific context, check the relevant docs linked from RESEARCH.md.
 
-## Reference Implementation
-
-**todoTrack** (at `../todoTrack/` relative to this project) is the closest sibling project and shares the same auth pattern, backend structure, and Docker setup. When implementing auth, user model, JWT handling, or anything you're unsure about architecturally, read that project's code first. Specifically:
-
-- `../todoTrack/backend/app/core/security.py` — `get_current_user`, token helpers
-- `../todoTrack/backend/app/routers/auth.py` — register/login/refresh/me endpoints
-- `../todoTrack/backend/app/services/auth_service.py` — `authenticate_user`, `register_user`
-- `../todoTrack/backend/app/models/user.py` — User model structure
-- `../todoTrack/docker-compose.yml` — Docker Compose pattern to follow
-
-Do not copy code blindly — poringField has different models (Poring, XPEvent, ChecklistItem) — but use todoTrack as the reference for the auth plumbing and project structure.
-
 ## Rules
 
 - **Read official docs first.** Before using any package, library, or tool -- read its official documentation. Not your training data, not your memory. The actual docs.

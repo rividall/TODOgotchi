@@ -23,7 +23,7 @@ TODOgotchi API is a RESTful API built with FastAPI.
 
 **Scoping:** All porings and labels are scoped to the user's **workspace**. Users with no workspace see an empty field.
 
-**Deployment:** Docker on `cepelynvault`, exposed via Cloudflare Tunnel at `todogotchi.buenalynch.com`. nginx proxies `/api/` and `/admin/` to the backend container.
+**Deployment:** Docker on the mini PC, exposed via Cloudflare Tunnel at `todogotchi.buenalynch.com`. nginx proxies `/api/` and `/admin/` to the backend container.
 
 ---
 

@@ -26,3 +26,6 @@ Thumbs.db
 
 # Docker
 *.log
+
+# Local-only infra notes (contains internal hostnames / paths)
+docs/SERVER-INFRASTRUCTURE.md

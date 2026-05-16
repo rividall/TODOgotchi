@@ -18,7 +18,7 @@ The critters! Feed them by working on them — add checklists, labels, descripti
 | Database    | PostgreSQL 16                                           |
 | State       | React Context + local state (no external state lib)     |
 | Auth        | JWT — access token (30 min) + refresh token (7 days)   |
-| Deploy      | Docker Compose on cepelynvault, Cloudflare Tunnel       |
+| Deploy      | Docker Compose on mini PC, Cloudflare Tunnel            |
 
 <!--
   Add rows as your stack grows. Examples:
@@ -28,29 +28,26 @@ The critters! Feed them by working on them — add checklists, labels, descripti
 
 ## Server & Deployment
 
-This project runs on the home server infrastructure documented in [docs/SERVER-INFRASTRUCTURE.md](docs/SERVER-INFRASTRUCTURE.md). Key deployment facts:
+This project runs on a self-hosted Docker stack behind a Cloudflare Tunnel. Key deployment facts:
 
 | Setting               | Value                                          |
 | --------------------- | ---------------------------------------------- |
-| Host machine          | cepelynvault                                   |
+| Host machine          | mini PC                                        |
 | Subdomain             | porings.buenalynch.com                         |
 | Container port        | 3004 (frontend)                                |
 | Backend port          | 8004 (internal)                                |
 | DB port               | 5434 (host)                                    |
-| Tunnel                | buenalynch (mini PC)                           |
+| Tunnel                | Cloudflare Tunnel (mini PC)                    |
 | Compose file          | `./docker-compose.yml`                         |
 | Data volumes          | `pgdata` (postgres data)                       |
 
-<!--
-  Check SERVER-INFRASTRUCTURE.md for the full port map before any deployment decision.
--->
 
 **How traffic reaches this service:**
 ```
 User browser
   → porings.buenalynch.com (Cloudflare DNS, CNAME → tunnel UUID ddb937a3-...)
   → Cloudflare edge (TLS termination)
-  → Tunnel to cepelynvault
+  → Tunnel to mini PC
   → cloudflared forwards to localhost:3004
   → Docker frontend container (nginx) serves React app + proxies /api/ → backend:8000
 ```
@@ -119,7 +116,7 @@ todogotchi/
 - **Auth flow**: Login returns `access_token` (30 min) + `refresh_token` (7 days). Client stores both in memory (not localStorage). Axios interceptor auto-refreshes on 401.
 - **Database**: PostgreSQL 16 via `postgres:16-alpine` Docker container. Internal only — no host port exposed in production.
 - **API**: All routes under `/api/v1/`.
-- **Deployment**: Docker Compose on cepelynvault, exposed via Cloudflare Tunnel. No reverse proxy, no local SSL.
+- **Deployment**: Docker Compose on mini PC, exposed via Cloudflare Tunnel. No reverse proxy, no local SSL.
 
 ## Local Development
 

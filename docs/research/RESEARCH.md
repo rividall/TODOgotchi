@@ -19,7 +19,7 @@ Not every feature needs all three stages. Some only need a deployment doc (e.g.,
 All projects in this ecosystem deploy to the home server infrastructure described in [SERVER-INFRASTRUCTURE.md](../SERVER-INFRASTRUCTURE.md). When evaluating packages, consider:
 
 - **Does it need a port?** Check SERVER-INFRASTRUCTURE.md for conflicts. Next available: frontend 3006, backend 8006, postgres 5435.
-- **Does it need a sidecar container?** It will run alongside the project's Docker Compose stack on `cepelynvault`.
+- **Does it need a sidecar container?** It will run alongside the project's Docker Compose stack on the mini PC.
 - **Does it need external network access?** All outbound traffic works normally, but inbound goes through Cloudflare Tunnels only.
 - **Does it need persistent storage?** Plan Docker volumes. The mini PC has SSD storage.
 - **Does it need DNS/subdomain changes?** Document the CNAME + tunnel ingress steps in the deployment doc.
